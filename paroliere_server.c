@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <sys/wait.h>
 #include <pthread.h>
+#include "matrice.h"
 
 // Definizione dei tipi di messaggio
 #define MSG_OK 'K'
@@ -60,7 +61,25 @@ int main(int argc, char *argv[])
   int server_fd, new_socket;
   struct sockaddr_in address;
   int addrlen = sizeof(address);
+  Matrice mat; // Dichiarazione di una variabile di tipo Matrice
   int port = atoi(argv[1]); // Ottiene la porta del server dalla riga di comando
+
+  printf("numero argomenti: %d\n", argc);
+
+  if (argc == 3)
+  {
+    // Leggere la matrice dal file
+    if (leggi_matrice_da_file(&mat, argv[1]) != 0)
+    {
+      fprintf(stderr, "Errore nella lettura del file\n");
+      return 1;
+    }
+  }
+  else
+  {
+    // Generare una matrice casuale
+    genera_matrice_casuale(&mat);
+  }
 
   if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) // Crea il socket del server
   {

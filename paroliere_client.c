@@ -40,10 +40,11 @@ void receive_message(int sock, char *type, unsigned int *length, char *data)
   data[*length] = '\0'; // Aggiunge il terminatore di stringa
 }
 
-int main()
+int main(int argc, char *argv[])
 {
   int sock;
   struct sockaddr_in server_address;
+  int port = atoi(argv[1]); // Ottiene la porta del server dalla riga di comando
 
   // Crea il socket del client
   if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
@@ -53,7 +54,7 @@ int main()
   }
 
   server_address.sin_family = AF_INET;
-  server_address.sin_port = htons(5000);
+  server_address.sin_port = htons(port);
 
   // Converte l'indirizzo IP in formato binario e lo assegna a server_address.sin_addr
   if (inet_pton(AF_INET, "127.0.0.1", &server_address.sin_addr) <= 0)
