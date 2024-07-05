@@ -3,6 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 
 // Definizione dei tipi di messaggio
 #define MSG_OK 'K'
@@ -21,30 +22,61 @@ void send_message(int sock, char type, const char *data)
   unsigned int length = strlen(data);
 
   // Invia il tipo di messaggio
-  write(sock, &type, sizeof(type));
+  if (write(sock, &type, sizeof(type)) < 0)
+  {
+    perror("Errore nell'invio del tipo di messaggio");
+    exit(EXIT_FAILURE);
+  }
   // Invia la lunghezza del messaggio
-  write(sock, &length, sizeof(length));
+  if (write(sock, &length, sizeof(length)) < 0)
+  {
+    perror("Errore nell'invio della lunghezza del messaggio");
+    exit(EXIT_FAILURE);
+  }
   // Invia i dati del messaggio
-  write(sock, data, length);
+  if (write(sock, data, length) < 0)
+  {
+    perror("Errore nell'invio dei dati del messaggio");
+    exit(EXIT_FAILURE);
+  }
 }
 
 // Funzione per ricevere un messaggio
 void receive_message(int sock, char *type, unsigned int *length, char *data)
 {
   // Riceve il tipo di messaggio
-  read(sock, type, sizeof(*type));
+  if (read(sock, type, sizeof(*type)) < 0)
+  {
+    perror("Errore nella ricezione del tipo di messaggio");
+    exit(EXIT_FAILURE);
+  }
   // Riceve la lunghezza del messaggio
-  read(sock, length, sizeof(*length));
+  if (read(sock, length, sizeof(*length)) < 0)
+  {
+    perror("Errore nella ricezione della lunghezza del messaggio");
+    exit(EXIT_FAILURE);
+  }
   // Riceve i dati del messaggio
-  read(sock, data, *length);
+  if (read(sock, data, *length) < 0)
+  {
+    perror("Errore nella ricezione dei dati del messaggio");
+    exit(EXIT_FAILURE);
+  }
   data[*length] = '\0'; // Aggiunge il terminatore di stringa
 }
 
 int main(int argc, char *argv[])
 {
+  if (argc != 3)
+  {
+    fprintf(stderr, "Utilizzo: %s <nome_server> <porta>\n", argv[0]);
+    exit(EXIT_FAILURE);
+  }
+
   int sock;
   struct sockaddr_in server_address;
-  int port = atoi(argv[1]); // Ottiene la porta del server dalla riga di comando
+  char *server_name = argv[1];
+  int port = atoi(argv[2]); // Ottiene la porta del server dalla riga di comando
 
   // Crea il socket del client
   if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
@@ -53,17 +85,18 @@ int main(int argc, char *argv[])
     exit(EXIT_FAILURE);
   }
 
-  server_address.sin_family = AF_INET;
-  server_address.sin_port = htons(port);
-
-  // Converte l'indirizzo IP in formato binario e lo assegna a server_address.sin_addr
-  if (inet_pton(AF_INET, "127.0.0.1", &server_address.sin_addr) <= 0)
+  struct hostent *host;
+  if ((host = gethostbyname(server_name)) == NULL)
   {
-    perror("Indirizzo non valido/Indirizzo non supportato");
+    perror("Errore: nome del server non valido");
     exit(EXIT_FAILURE);
   }
 
-  // Effettua la connessione al server
+  server_address.sin_family = AF_INET;
+  server_address.sin_port = htons(port);
+  memcpy(&server_address.sin_addr.s_addr, host->h_addr_list[0], sizeof(server_address.sin_addr.s_addr));
+
+  printf("Tentativo di connessione al server %s sulla porta %d\n", server_name, port);  // Effettua la connessione al server
   if (connect(sock, (struct sockaddr *)&server_address, sizeof(server_address)) < 0)
   {
     perror("Errore nella connessione");
@@ -82,6 +115,21 @@ int main(int argc, char *argv[])
   receive_message(sock, &type, &length, data);
 
   printf("Ricevuto dal server: Type=%c, Length=%u, Data=%s\n", type, length, data);
+
+  // Gestione dei tipi di messaggio ricevuti
+  switch (type)
+  {
+  case MSG_OK:
+    printf("Registrazione avvenuta con successo\n");
+    break;
+  case MSG_ERR:
+    printf("Errore: %s\n", data);
+    break;
+  // TODO Aggiungi altri casi per gestire altri tipi di messaggi come MSG_MATRICE, MSG_TEMPO_PARTITA, etc.
+  default:
+    printf("Tipo di messaggio sconosciuto ricevuto: %c\n", type);
+    break;
+  }
 
   // Chiude il socket
   close(sock);
