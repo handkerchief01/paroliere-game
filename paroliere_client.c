@@ -1,8 +1,12 @@
+#define _XOPEN_SOURCE 600 // Definisce la macro per conformità POSIX, senza di questo non riesce ad andare addrinfo
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include "macros.h"
 #include <netdb.h>
 
 // Definizione dei tipi di messaggio
@@ -73,10 +77,12 @@ int main(int argc, char *argv[])
     exit(EXIT_FAILURE);
   }
 
+  int retvalue;
   int sock;
   struct sockaddr_in server_address;
   char *server_name = argv[1];
   int port = atoi(argv[2]); // Ottiene la porta del server dalla riga di comando
+  struct addrinfo hints, *res, *p;
 
   // Crea il socket del client
   if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
@@ -85,24 +91,32 @@ int main(int argc, char *argv[])
     exit(EXIT_FAILURE);
   }
 
-  struct hostent *host;
-  if ((host = gethostbyname(server_name)) == NULL)
+  memset(&hints, 0, sizeof hints);
+  hints.ai_family = AF_INET;
+  hints.ai_socktype = SOCK_STREAM;
+  SYSC(retvalue, getaddrinfo(server_name, NULL, &hints, &res), "Getaddrinfo error");
+
+  for (p = res; p != NULL; p = p->ai_next)
   {
-    perror("Errore: nome del server non valido");
-    exit(EXIT_FAILURE);
+    if (p->ai_family == AF_INET)
+    {
+      struct sockaddr_in *ipv4 = (struct sockaddr_in *)p->ai_addr;
+      memcpy(&server_address, ipv4, sizeof(struct sockaddr_in));
+      break;
+    }
   }
 
-  server_address.sin_family = AF_INET;
+  freeaddrinfo(res);
+
+  if (p == NULL)
+  {
+    fprintf(stderr, "Errore: non è stato trovato un indirizzo valido per il server\n");
+    exit(1);
+  }
+
   server_address.sin_port = htons(port);
-  memcpy(&server_address.sin_addr.s_addr, host->h_addr_list[0], sizeof(server_address.sin_addr.s_addr));
 
-  printf("Tentativo di connessione al server %s sulla porta %d\n", server_name, port);  // Effettua la connessione al server
-  if (connect(sock, (struct sockaddr *)&server_address, sizeof(server_address)) < 0)
-  {
-    perror("Errore nella connessione");
-    exit(EXIT_FAILURE);
-  }
-
+  SYSC(retvalue, connect(sock, (struct sockaddr *)&server_address, sizeof(server_address)), "Connect error");
   printf("Connesso al server\n");
 
   // Esempio di invio di un messaggio al server
