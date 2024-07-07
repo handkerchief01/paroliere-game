@@ -69,6 +69,16 @@ void receive_message(int sock, char *type, unsigned int *length, char *data)
   data[*length] = '\0'; // Aggiunge il terminatore di stringa
 }
 
+void print_help()
+{
+  printf("Comandi disponibili:\n");
+  printf("aiuto -> Mostra questo messaggio di aiuto\n");
+  printf("registra utente <nome_utente> -> Registra un nuovo utente\n");
+  printf("matrice -> Richiede la matrice corrente (devi essere registrato)\n");
+  printf("p <parola> -> Invia una parola al server (devi essere registrato)\n");
+  printf("fine -> Esci dal gioco\n");
+}
+
 int main(int argc, char *argv[])
 {
   if (argc != 3)
@@ -83,6 +93,7 @@ int main(int argc, char *argv[])
   char *server_name = argv[1];
   int port = atoi(argv[2]); // Ottiene la porta del server dalla riga di comando
   struct addrinfo hints, *res, *p;
+  int is_registered = 0; // Variabile per tracciare se l'utente è registrato
 
   // Crea il socket del client
   if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
@@ -119,30 +130,172 @@ int main(int argc, char *argv[])
   SYSC(retvalue, connect(sock, (struct sockaddr *)&server_address, sizeof(server_address)), "Connect error");
   printf("Connesso al server\n");
 
-  // Esempio di invio di un messaggio al server
-  send_message(sock, MSG_REGISTRA_UTENTE, "NomeUtente");
+  // Mostra il menu iniziale
+  print_help();
 
-  // Esempio di ricezione di un messaggio dal server
-  char type;
-  unsigned int length;
-  char data[1024];
-  receive_message(sock, &type, &length, data);
-
-  printf("Ricevuto dal server: Type=%c, Length=%u, Data=%s\n", type, length, data);
-
-  // Gestione dei tipi di messaggio ricevuti
-  switch (type)
+  char command[1024];
+  printf("[PROMPT PAROLIERE]--> ");
+  while (fgets(command, sizeof(command), stdin) != NULL)
   {
-  case MSG_OK:
-    printf("Registrazione avvenuta con successo\n");
-    break;
-  case MSG_ERR:
-    printf("Errore: %s\n", data);
-    break;
-  // TODO Aggiungi altri casi per gestire altri tipi di messaggi come MSG_MATRICE, MSG_TEMPO_PARTITA, etc.
-  default:
-    printf("Tipo di messaggio sconosciuto ricevuto: %c\n", type);
-    break;
+    // Rimuove il carattere di nuova linea alla fine del comando
+    command[strcspn(command, "\n")] = 0;
+
+    // Suddivide il comando in parole
+    char *token = strtok(command, " ");
+    if (token == NULL)
+    {
+      printf("Comando non valido\n");
+      printf("[PROMPT PAROLIERE]--> ");
+      continue;
+    }
+
+    // Usa una variabile per il comando riconosciuto
+    char command_type = 0;
+
+    // Identifica il comando
+    if (strcmp(token, "aiuto") == 0)
+    {
+      command_type = 'H';
+    }
+    else if (strcmp(token, "registra") == 0)
+    {
+      token = strtok(NULL, " ");
+      if (token != NULL && strcmp(token, "utente") == 0)
+      {
+        token = strtok(NULL, " ");
+        if (token != NULL)
+        {
+          command_type = 'R';
+        }
+      }
+    }
+    else if (strcmp(token, "matrice") == 0)
+    {
+      command_type = 'M';
+    }
+    else if (strcmp(token, "p") == 0)
+    {
+      token = strtok(NULL, " ");
+      if (token != NULL)
+      {
+        command_type = 'W';
+      }
+    }
+    else if (strcmp(token, "fine") == 0)
+    {
+      command_type = 'Q';
+    }
+
+    switch (command_type)
+    {
+    case 'H':
+      print_help();
+      break;
+
+    case 'R':
+      send_message(sock, MSG_REGISTRA_UTENTE, token);
+
+      // Riceve la risposta dal server
+      {
+        char type;
+        unsigned int length;
+        char data[1024];
+        receive_message(sock, &type, &length, data);
+
+        printf("Ricevuto dal server: Type=%c, Length=%u, Data=%s\n", type, length, data);
+
+        if (type == MSG_OK)
+        {
+          printf("Registrazione avvenuta con successo\n");
+          is_registered = 1; // Imposta lo stato come registrato
+        }
+        else if (type == MSG_ERR)
+        {
+          printf("Errore: %s\n", data);
+        }
+        else
+        {
+          printf("Tipo di messaggio sconosciuto ricevuto: %c\n", type);
+        }
+      }
+      break;
+
+    case 'M':
+      if (!is_registered)
+      {
+        printf("Devi essere registrato per richiedere la matrice\n");
+        break;
+      }
+      send_message(sock, MSG_MATRICE, "");
+
+      // Riceve la risposta dal server
+      {
+        char type;
+        unsigned int length;
+        char data[1024];
+        receive_message(sock, &type, &length, data);
+
+        printf("Ricevuto dal server: Type=%c, Length=%u, Data=%s\n", type, length, data);
+
+        // Gestisci la risposta del server
+        if (type == MSG_MATRICE)
+        {
+          printf("Matrice ricevuta: %s\n", data);
+        }
+        else if (type == MSG_ERR)
+        {
+          printf("Errore: %s\n", data);
+        }
+        else
+        {
+          printf("Tipo di messaggio sconosciuto ricevuto: %c\n", type);
+        }
+      }
+      break;
+
+    case 'W':
+      if (!is_registered)
+      {
+        printf("Devi essere registrato per inviare una parola\n");
+        break;
+      }
+      send_message(sock, MSG_PAROLA, token);
+
+      // Riceve la risposta dal server
+      {
+        char type;
+        unsigned int length;
+        char data[1024];
+        receive_message(sock, &type, &length, data);
+
+        printf("Ricevuto dal server: Type=%c, Length=%u, Data=%s\n", type, length, data);
+
+        if (type == MSG_PUNTI_PAROLA)
+        {
+          printf("Punteggio parola: %s\n", data);
+        }
+        else if (type == MSG_ERR)
+        {
+          printf("Errore: %s\n", data);
+        }
+        else
+        {
+          printf("Tipo di messaggio sconosciuto ricevuto: %c\n", type);
+        }
+      }
+      break;
+
+    case 'Q':
+      printf("Uscita dal gioco\n");
+      close(sock);
+      exit(0);
+
+    default:
+      printf("Comando non valido\n");
+      break;
+    }
+
+    printf("[PROMPT PAROLIERE]--> ");
   }
 
   // Chiude il socket
