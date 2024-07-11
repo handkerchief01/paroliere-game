@@ -79,6 +79,39 @@ void print_help()
   printf("fine -> Esci dal gioco\n");
 }
 
+// Funzione per stampare la matrice
+void print_matrice(const char *data)
+{
+  char matrice[4][4][4];
+  int index = 0;
+
+  // Parsing della stringa ricevuta per ottenere la matrice
+  for (int i = 0; i < 4; i++)
+  {
+    for (int j = 0; j < 4; j++)
+    {
+      strncpy(matrice[i][j], &data[index], 3);
+      matrice[i][j][3] = '\0';
+      index += 3;
+    }
+  }
+
+  // Parsing del tempo residuo
+  int tempo_residuo = atoi(&data[index]);
+
+  // Stampa della matrice
+  printf("Matrice:\n");
+  for (int i = 0; i < 4; i++)
+  {
+    for (int j = 0; j < 4; j++)
+    {
+      printf("%s ", matrice[i][j]);
+    }
+    printf("\n");
+  }
+  printf("Tempo residuo: %d secondi\n", tempo_residuo);
+}
+
 int main(int argc, char *argv[])
 {
   if (argc != 3)
@@ -224,31 +257,32 @@ int main(int argc, char *argv[])
       if (!is_registered)
       {
         printf("Devi essere registrato per richiedere la matrice\n");
-        break;
       }
-      send_message(sock, MSG_MATRICE, "");
-
-      // Riceve la risposta dal server
+      else
       {
-        char type;
-        unsigned int length;
-        char data[1024];
-        receive_message(sock, &type, &length, data);
+        send_message(sock, MSG_MATRICE, "");
 
-        printf("Ricevuto dal server: Type=%c, Length=%u, Data=%s\n", type, length, data);
+        // Riceve la risposta dal server
+        {
+          char type;
+          unsigned int length;
+          char data[1024];
+          receive_message(sock, &type, &length, data);
 
-        // Gestisci la risposta del server
-        if (type == MSG_MATRICE)
-        {
-          printf("Matrice ricevuta: %s\n", data);
-        }
-        else if (type == MSG_ERR)
-        {
-          printf("Errore: %s\n", data);
-        }
-        else
-        {
-          printf("Tipo di messaggio sconosciuto ricevuto: %c\n", type);
+          printf("Ricevuto dal server: Type=%c, Length=%u, Data=%s\n", type, length, data);
+
+          if (type == MSG_MATRICE)
+          {
+            print_matrice(data);
+          }
+          else if (type == MSG_ERR)
+          {
+            printf("Errore: %s\n", data);
+          }
+          else
+          {
+            printf("Tipo di messaggio sconosciuto ricevuto: %c\n", type);
+          }
         }
       }
       break;
@@ -257,30 +291,32 @@ int main(int argc, char *argv[])
       if (!is_registered)
       {
         printf("Devi essere registrato per inviare una parola\n");
-        break;
       }
-      send_message(sock, MSG_PAROLA, token);
-
-      // Riceve la risposta dal server
+      else
       {
-        char type;
-        unsigned int length;
-        char data[1024];
-        receive_message(sock, &type, &length, data);
+        send_message(sock, MSG_PAROLA, token);
 
-        printf("Ricevuto dal server: Type=%c, Length=%u, Data=%s\n", type, length, data);
+        // Riceve la risposta dal server
+        {
+          char type;
+          unsigned int length;
+          char data[1024];
+          receive_message(sock, &type, &length, data);
 
-        if (type == MSG_PUNTI_PAROLA)
-        {
-          printf("Punteggio parola: %s\n", data);
-        }
-        else if (type == MSG_ERR)
-        {
-          printf("Errore: %s\n", data);
-        }
-        else
-        {
-          printf("Tipo di messaggio sconosciuto ricevuto: %c\n", type);
+          printf("Ricevuto dal server: Type=%c, Length=%u, Data=%s\n", type, length, data);
+
+          if (type == MSG_PUNTI_PAROLA)
+          {
+            printf("Punti parola: %s\n", data);
+          }
+          else if (type == MSG_ERR)
+          {
+            printf("Errore: %s\n", data);
+          }
+          else
+          {
+            printf("Tipo di messaggio sconosciuto ricevuto: %c\n", type);
+          }
         }
       }
       break;
