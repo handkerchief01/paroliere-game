@@ -22,7 +22,7 @@
 #define MSG_PUNTI_FINALI 'F'
 #define MSG_PUNTI_PAROLA 'P'
 
-#define MAX_CLIENTS 10 // Definisce il numero massimo di client in attesa di connessione
+#define MAX_CLIENTS 32 // Definisce il numero massimo di client in attesa di connessione
 
 Matrice mat;                                              // Variabile globale per la matrice
 pthread_mutex_t utenti_mutex = PTHREAD_MUTEX_INITIALIZER; // Mutex per la protezione della lista utenti
@@ -236,13 +236,13 @@ int main(int argc, char *argv[])
 
   if (argc == 4)
   { // Controlla il numero di argomenti
-    if (leggi_matrice_da_file(&mat, argv[1]) != 0)
+    if (leggi_matrice_da_file(&mat, argv[3]) != 0)
     {                                                     // Legge la matrice dal file
       fprintf(stderr, "Errore nella lettura del file\n"); // Stampa un messaggio di errore se la lettura fallisce
       return 1;                                           // Termina il programma con errore
     }
-    tempo_attesa = atoi(argv[2]);  // Ottiene il tempo di attesa dal secondo argomento
-    tempo_partita = atoi(argv[3]); // Ottiene il tempo di partita dal terzo argomento
+    tempo_attesa = atoi(argv[4]);  // Ottiene il tempo di attesa dal secondo argomento
+    tempo_partita = atoi(argv[5]); // Ottiene il tempo di partita dal terzo argomento
   }
   else
   {
