@@ -15,6 +15,8 @@ void send_message(int sock, char type, const char *data)
 {
   unsigned int length = strlen(data);
 
+  printf("Invio al server: Type=%c, Length=%u, Data=%s\n", type, length, data);
+
   // Invia il tipo di messaggio
   if (write(sock, &type, sizeof(type)) < 0)
   {
@@ -169,7 +171,6 @@ int main(int argc, char *argv[])
     {
       printf("Comando non valido\n");
       printf("[PROMPT PAROLIERE]--> ");
-      continue;
     }
 
     // Usa una variabile per il comando riconosciuto
@@ -216,8 +217,9 @@ int main(int argc, char *argv[])
       break;
 
     case 'R':
+      printf("Registrazione dell'utente %s\n", token);
       send_message(sock, MSG_REGISTRA_UTENTE, token);
-
+      
       // Riceve la risposta dal server
       {
         char type;

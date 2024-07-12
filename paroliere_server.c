@@ -55,7 +55,14 @@ void handle_send_tempo_partita(int client_socket)
 // Funzione per registrare un utente
 int registra_utente(const char *nome)
 {
+  printf("Registrazione utente: %s\n", nome); // Stampa il nome dell'utente
+  printf("Lunghezza nome: %ld\n", strlen(nome));
   pthread_mutex_lock(&utenti_mutex); // Blocca il mutex per la protezione della lista utenti
+
+  if(strlen(nome) == 0 || strlen(nome) > 10){
+    pthread_mutex_unlock(&utenti_mutex); // Sblocca il mutex
+    return 0; // Nome utente vuoto
+  }
 
   Utente *curr = utenti_head; // Puntatore al primo utente nella lista
   while (curr != NULL)
@@ -140,65 +147,68 @@ void handle_parola(int client_socket, const char *nome, const char *parola)
   write(client_socket, response_data, response_length);            // Invia il messaggio di risposta
 }
 
+// Funzione per ricevere un messaggio dal client
+void receive_message(int client_socket, char *type, unsigned int *length, char *data)
+{
+  read(client_socket, type, sizeof(char));           // Legge il tipo di messaggio
+  read(client_socket, length, sizeof(unsigned int)); // Legge la lunghezza del messaggio
+  read(client_socket, data, *length);                // Legge i dati del messaggio
+  data[*length] = '\0';                              // Aggiunge il terminatore di stringa
+}
+
 // Funzione per gestire la comunicazione con il client
 void *handle_client(void *client_socket)
 {
   int sock = *(int *)client_socket; // Ottiene il file descriptor del socket del client
   free(client_socket);              // Libera la memoria allocata per il file descriptor
 
-  char buffer[1024]; // Buffer per la lettura dei dati dal client
-  int bytes_read;
+  char type;           // Tipo di messaggio
+  unsigned int length; // Lunghezza del messaggio
+  char data[1024];
 
-  while ((bytes_read = read(sock, buffer, sizeof(buffer) - 1)) > 0)
+  while (1)
   {                                   // Legge i dati dal client finché ci sono dati da leggere
-    buffer[bytes_read] = '\0';        // Aggiunge il terminatore di stringa alla fine del buffer
-    printf("Ricevuto: %s\n", buffer); // Stampa il messaggio ricevuto dal client
+    receive_message(sock, &type, &length, data);
 
     char response_type = MSG_OK;  // Tipo di messaggio di risposta predefinito
     unsigned int response_length; // Lunghezza del messaggio di risposta
     char response_data[1024];     // Buffer per il messaggio di risposta
 
-    if (buffer[0] == MSG_REGISTRA_UTENTE)
-    {                              // Gestisce il messaggio di registrazione utente
-      char *username = buffer + 1; // Ottiene il nome utente dal messaggio
-      if (registra_utente(username))
-      {                                                               // Registra l'utente
-        strcpy(response_data, "Registrazione avvenuta con successo"); // Prepara il messaggio di successo
-      }
-      else
-      {
-        response_type = MSG_ERR;                            // Imposta il tipo di messaggio a errore
-        strcpy(response_data, "Nome utente già esistente"); // Prepara il messaggio di errore
-      }
-      response_length = strlen(response_data); // Calcola la lunghezza del messaggio di risposta
-    }
-    else if (buffer[0] == MSG_MATRICE)
-    {                                 // Gestisce il messaggio di richiesta matrice
-      handle_send_matrix(sock, &mat); // Invia la matrice al client
-      continue;
-    }
-    else if (buffer[0] == MSG_TEMPO_ATTESA)
-    {                                 // Gestisce il messaggio di richiesta tempo di attesa
-      handle_send_tempo_attesa(sock); // Invia il tempo di attesa al client
-      continue;
-    }
-    else if (buffer[0] == MSG_TEMPO_PARTITA)
-    {                                  // Gestisce il messaggio di richiesta tempo di partita
-      handle_send_tempo_partita(sock); // Invia il tempo di partita al client
-      continue;
-    }
-    else if (buffer[0] == MSG_PAROLA)
-    {                                         // Gestisce il messaggio di invio parola
-      char *nome = buffer + 1;                // Ottiene il nome utente dal messaggio
-      char *parola = nome + strlen(nome) + 1; // Ottiene la parola dal messaggio
-      handle_parola(sock, nome, parola);      // Gestisce la parola
-      continue;
-    }
-    else
+    switch (type)
     {
-      response_type = MSG_ERR;                             // Imposta il tipo di messaggio a errore
-      strcpy(response_data, "Messaggio non riconosciuto"); // Prepara il messaggio di errore
-      response_length = strlen(response_data);             // Calcola la lunghezza del messaggio di risposta
+      case MSG_REGISTRA_UTENTE:
+        printf("Richiesta di registrazione utente: %s\n", data); // Stampa il nome utente
+        if (registra_utente(data))
+        {                                                               // Registra l'utente
+          strcpy(response_data, "Registrazione avvenuta con successo"); // Prepara il messaggio di successo
+        }
+        else
+        {
+          // TODO controllare se il nome utente è più lungo di 10 caratteri 
+          response_type = MSG_ERR;                            // Imposta il tipo di messaggio a errore
+          strcpy(response_data, "Nome utente già esistente"); // Prepara il messaggio di errore
+        }
+        response_length = strlen(response_data); // Calcola la lunghezza del messaggio di risposta
+        break;
+      case MSG_MATRICE:
+        handle_send_matrix(sock, &mat); // Invia la matrice al client
+        continue;
+      case MSG_TEMPO_ATTESA:
+        handle_send_tempo_attesa(sock); // Invia il tempo di attesa al client
+        continue;
+      case MSG_TEMPO_PARTITA:
+        handle_send_tempo_partita(sock); // Invia il tempo di partita al client
+        continue;
+      case MSG_PAROLA:
+        // char *nome = data;                // Ottiene il nome utente dal messaggio
+        // char *parola = nome + strlen(nome) + 1; // Ottiene la parola dal messaggio
+        // handle_parola(sock, nome, parola);      // Gestisce la parola
+        continue;
+      default:
+        response_type = MSG_ERR;                             // Imposta il tipo di messaggio a errore
+        strcpy(response_data, "Messaggio non riconosciuto"); // Prepara il messaggio di errore
+        response_length = strlen(response_data);             // Calcola la lunghezza del messaggio di risposta
+        break;
     }
 
     write(sock, &response_type, sizeof(response_type));     // Invia il tipo di messaggio
@@ -217,7 +227,7 @@ int main(int argc, char *argv[])
   struct sockaddr_in address;    // Struttura per l'indirizzo del server
   int addrlen = sizeof(address); // Lunghezza dell'indirizzo
 
-  if (argc == 4)
+  if (argc >= 4)
   { // Controlla il numero di argomenti
     if (leggi_matrice_da_file(&mat, argv[3]) != 0)
     {                                                     // Legge la matrice dal file

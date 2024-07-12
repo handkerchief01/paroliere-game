@@ -16,14 +16,6 @@
 
 #define BUFFERSIZE 1024
 
-// Definizione della struttura Message che indica come deve essere fatto un messaggio da inviare
-typedef struct
-{
-  char type;
-  unsigned int length;
-  char *data;
-} Message;
-
 // Struttura per memorizzare le informazioni degli utenti
 typedef struct Utente
 {
