@@ -10,34 +10,17 @@
 #include <sys/wait.h>
 #include <pthread.h>
 #include "matrice.h"
-
-// Definizione dei tipi di messaggio
-#define MSG_OK 'K'
-#define MSG_ERR 'E'
-#define MSG_REGISTRA_UTENTE 'R'
-#define MSG_MATRICE 'M'
-#define MSG_TEMPO_PARTITA 'T'
-#define MSG_TEMPO_ATTESA 'A'
-#define MSG_PAROLA 'W'
-#define MSG_PUNTI_FINALI 'F'
-#define MSG_PUNTI_PAROLA 'P'
+#include "structs.h"
 
 #define MAX_CLIENTS 32 // Definisce il numero massimo di client in attesa di connessione
 
 Matrice mat;                                              // Variabile globale per la matrice
+Utente *utenti_head = NULL;                               // Testa della lista degli utenti
 pthread_mutex_t utenti_mutex = PTHREAD_MUTEX_INITIALIZER; // Mutex per la protezione della lista utenti
 int tempo_attesa = 30;                                    // Tempo di attesa in secondi
 int tempo_partita = 60;                                   // Tempo di partita in secondi
 
-// Struttura per memorizzare le informazioni degli utenti
-typedef struct Utente
-{
-  char nome[100];      // Nome dell'utente
-  int punteggio;       // Punteggio dell'utente
-  struct Utente *next; // Puntatore al prossimo utente nella lista
-} Utente;
 
-Utente *utenti_head = NULL; // Testa della lista degli utenti
 
 // Funzione per inviare la matrice al client
 void handle_send_matrix(int client_socket, Matrice *mat)
