@@ -8,6 +8,7 @@
 #include <sys/socket.h>
 #include "macros.h"
 #include <netdb.h>
+#include "structs.h"
 
 // Funzione per inviare un messaggio
 void send_message(int sock, char type, const char *data)
