@@ -9,8 +9,10 @@
 #include <errno.h>
 #include <sys/wait.h>
 #include <pthread.h>
+
 #include "matrice.h"
 #include "structs.h"
+#include "utilities.h"
 
 #define MAX_CLIENTS 32 // Definisce il numero massimo di client in attesa di connessione
 
@@ -19,38 +21,6 @@ Utente *utenti_head = NULL;                               // Testa della lista d
 pthread_mutex_t utenti_mutex = PTHREAD_MUTEX_INITIALIZER; // Mutex per la protezione della lista utenti
 int tempo_attesa = 30;                                    // Tempo di attesa in secondi
 int tempo_partita = 60;                                   // Tempo di partita in secondi
-
-
-
-// Funzione per inviare la matrice al client
-void handle_send_matrix(int client_socket, Matrice *mat)
-{
-  char response_type = MSG_MATRICE;                                // Tipo di messaggio
-  unsigned int response_length = sizeof(Matrice);                  // Lunghezza del messaggio
-  write(client_socket, &response_type, sizeof(response_type));     // Invia il tipo di messaggio
-  write(client_socket, &response_length, sizeof(response_length)); // Invia la lunghezza del messaggio
-  write(client_socket, mat, response_length);                      // Invia la matrice
-}
-
-// Funzione per inviare il tempo di attesa al client
-void handle_send_tempo_attesa(int client_socket)
-{
-  char response_type = MSG_TEMPO_ATTESA;                           // Tipo di messaggio
-  unsigned int response_length = sizeof(tempo_attesa);             // Lunghezza del messaggio
-  write(client_socket, &response_type, sizeof(response_type));     // Invia il tipo di messaggio
-  write(client_socket, &response_length, sizeof(response_length)); // Invia la lunghezza del messaggio
-  write(client_socket, &tempo_attesa, response_length);            // Invia il tempo di attesa
-}
-
-// Funzione per inviare il tempo di partita al client
-void handle_send_tempo_partita(int client_socket)
-{
-  char response_type = MSG_TEMPO_PARTITA;                          // Tipo di messaggio
-  unsigned int response_length = sizeof(tempo_partita);            // Lunghezza del messaggio
-  write(client_socket, &response_type, sizeof(response_type));     // Invia il tipo di messaggio
-  write(client_socket, &response_length, sizeof(response_length)); // Invia la lunghezza del messaggio
-  write(client_socket, &tempo_partita, response_length);           // Invia il tempo di partita
-}
 
 // Funzione per registrare un utente
 int registra_utente(const char *nome)
@@ -147,15 +117,6 @@ void handle_parola(int client_socket, const char *nome, const char *parola)
   write(client_socket, response_data, response_length);            // Invia il messaggio di risposta
 }
 
-// Funzione per ricevere un messaggio dal client
-void receive_message(int client_socket, char *type, unsigned int *length, char *data)
-{
-  read(client_socket, type, sizeof(char));           // Legge il tipo di messaggio
-  read(client_socket, length, sizeof(unsigned int)); // Legge la lunghezza del messaggio
-  read(client_socket, data, *length);                // Legge i dati del messaggio
-  data[*length] = '\0';                              // Aggiunge il terminatore di stringa
-}
-
 // Funzione per gestire la comunicazione con il client
 void *handle_client(void *client_socket)
 {
@@ -172,7 +133,7 @@ void *handle_client(void *client_socket)
 
     char response_type = MSG_OK;  // Tipo di messaggio di risposta predefinito
     unsigned int response_length; // Lunghezza del messaggio di risposta
-    char response_data[1024];     // Buffer per il messaggio di risposta
+    char* response_data;     // Buffer per il messaggio di risposta
 
     switch (type)
     {
@@ -191,13 +152,16 @@ void *handle_client(void *client_socket)
         response_length = strlen(response_data); // Calcola la lunghezza del messaggio di risposta
         break;
       case MSG_MATRICE:
-        handle_send_matrix(sock, &mat); // Invia la matrice al client
+        response_type = MSG_MATRICE; // Imposta il tipo di messaggio a matrice
+        response_data = (char *)&mat; // Imposta i dati di risposta alla matrice
         continue;
       case MSG_TEMPO_ATTESA:
-        handle_send_tempo_attesa(sock); // Invia il tempo di attesa al client
+        response_type = MSG_TEMPO_ATTESA; // Imposta il tipo di messaggio a tempo attesa
+        response_data = (char *)&tempo_attesa; // Imposta i dati di risposta al tempo di attesa
         continue;
       case MSG_TEMPO_PARTITA:
-        handle_send_tempo_partita(sock); // Invia il tempo di partita al client
+        response_type = MSG_TEMPO_PARTITA; // Imposta il tipo di messaggio a tempo partita
+        response_data = (char *)&tempo_partita; // Imposta i dati di risposta al tempo di partita
         continue;
       case MSG_PAROLA:
         // char *nome = data;                // Ottiene il nome utente dal messaggio
@@ -211,9 +175,7 @@ void *handle_client(void *client_socket)
         break;
     }
 
-    write(sock, &response_type, sizeof(response_type));     // Invia il tipo di messaggio
-    write(sock, &response_length, sizeof(response_length)); // Invia la lunghezza del messaggio
-    write(sock, response_data, response_length);            // Invia il messaggio di risposta
+    send_message(sock, response_type, response_data); // Invia il messaggio di risposta al client
   }
 
   close(sock); // Chiude il socket del client

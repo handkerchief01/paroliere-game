@@ -9,56 +9,23 @@
 #include "macros.h"
 #include <netdb.h>
 #include "structs.h"
+#include "utilities.h"
 
-// Funzione per inviare un messaggio
-void send_message(int sock, char type, const char *data)
+// Funzione per richiedere il tempo residuo al server
+int richiedi_tempo_residuo(int sock)
 {
-  unsigned int length = strlen(data);
+  char msg_type = MSG_TEMPO_PARTITA;        // Tipo di messaggio per richiedere il tempo residuo
+  write(sock, &msg_type, sizeof(msg_type)); // Invia la richiesta al server
 
-  printf("Invio al server: Type=%c, Length=%u, Data=%s\n", type, length, data);
+  char response_type;           // Tipo di messaggio di risposta
+  unsigned int response_length; // Lunghezza del messaggio di risposta
+  int tempo_residuo;
 
-  // Invia il tipo di messaggio
-  if (write(sock, &type, sizeof(type)) < 0)
-  {
-    perror("Errore nell'invio del tipo di messaggio");
-    exit(EXIT_FAILURE);
-  }
-  // Invia la lunghezza del messaggio
-  if (write(sock, &length, sizeof(length)) < 0)
-  {
-    perror("Errore nell'invio della lunghezza del messaggio");
-    exit(EXIT_FAILURE);
-  }
-  // Invia i dati del messaggio
-  if (write(sock, data, length) < 0)
-  {
-    perror("Errore nell'invio dei dati del messaggio");
-    exit(EXIT_FAILURE);
-  }
-}
+  read(sock, &response_type, sizeof(response_type));     // Legge il tipo di messaggio di risposta
+  read(sock, &response_length, sizeof(response_length)); // Legge la lunghezza del messaggio di risposta
+  read(sock, &tempo_residuo, response_length);           // Legge il tempo residuo
 
-// Funzione per ricevere un messaggio
-void receive_message(int sock, char *type, unsigned int *length, char *data)
-{
-  // Riceve il tipo di messaggio
-  if (read(sock, type, sizeof(*type)) < 0)
-  {
-    perror("Errore nella ricezione del tipo di messaggio");
-    exit(EXIT_FAILURE);
-  }
-  // Riceve la lunghezza del messaggio
-  if (read(sock, length, sizeof(*length)) < 0)
-  {
-    perror("Errore nella ricezione della lunghezza del messaggio");
-    exit(EXIT_FAILURE);
-  }
-  // Riceve i dati del messaggio
-  if (read(sock, data, *length) < 0)
-  {
-    perror("Errore nella ricezione dei dati del messaggio");
-    exit(EXIT_FAILURE);
-  }
-  data[*length] = '\0'; // Aggiunge il terminatore di stringa
+  return tempo_residuo; // Ritorna il tempo residuo
 }
 
 void print_help()

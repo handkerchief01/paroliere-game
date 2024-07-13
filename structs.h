@@ -14,12 +14,10 @@
 #define MSG_HELP 'H'
 #define MSG_CLASSIFICA 'C'
 
-#define BUFFERSIZE 1024
-
 // Struttura per memorizzare le informazioni degli utenti
 typedef struct Utente
 {
-  char nome[100];      // Nome dell'utente
+  char nome[10];      // Nome dell'utente
   int punteggio;       // Punteggio dell'utente
   struct Utente *next; // Puntatore al prossimo utente nella lista
 } Utente;
