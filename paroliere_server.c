@@ -7,251 +7,294 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <errno.h>
-#include <sys/wait.h>
 #include <pthread.h>
 
 #include "matrice.h"
 #include "structs.h"
 #include "utilities.h"
 
-#define MAX_CLIENTS 32 // Definisce il numero massimo di client in attesa di connessione
+// Numero massimo di client in coda di connessione
+#define MAX_CLIENTS 32
 
-Matrice mat;                                              // Variabile globale per la matrice
-Utente *utenti_head = NULL;                               // Testa della lista degli utenti
-pthread_mutex_t utenti_mutex = PTHREAD_MUTEX_INITIALIZER; // Mutex per la protezione della lista utenti
-int tempo_attesa = 30;                                    // Tempo di attesa in secondi
-int tempo_partita = 60;                                   // Tempo di partita in secondi
+// Variabili globali
+Matrice mat;                                              // Matrice di gioco 4x4
+Utente *utenti_head = NULL;                               // Lista utenti collegati
+pthread_mutex_t utenti_mutex = PTHREAD_MUTEX_INITIALIZER; // Mutex per proteggere la lista
+int tempo_attesa = 30;                                    // Tempo di attesa (s)
+int tempo_partita = 60;                                   // Tempo di partita (s)
 
-// Funzione per registrare un utente
+// Funzione per registrare un utente nella lista
 int registra_utente(const char *nome)
 {
-  printf("Registrazione utente: %s\n", nome); // Stampa il nome dell'utente
-  printf("Lunghezza nome: %ld\n", strlen(nome));
-  pthread_mutex_lock(&utenti_mutex); // Blocca il mutex per la protezione della lista utenti
+  printf("Registrazione utente: %s\n", nome);
 
-  if(strlen(nome) == 0 || strlen(nome) > 10){
-    pthread_mutex_unlock(&utenti_mutex); // Sblocca il mutex
-    return 0; // Nome utente vuoto
+  pthread_mutex_lock(&utenti_mutex);
+
+  // Verifichiamo la lunghezza minima/massima
+  if (strlen(nome) == 0 || strlen(nome) > 10)
+  {
+    pthread_mutex_unlock(&utenti_mutex);
+    return 0; // Nome non valido
   }
 
-  Utente *curr = utenti_head; // Puntatore al primo utente nella lista
+  // Controllo se il nome utente è già presente
+  Utente *curr = utenti_head;
   while (curr != NULL)
-  { // Scorre la lista degli utenti
+  {
     if (strcmp(curr->nome, nome) == 0)
-    {                                      // Controlla se l'utente esiste già
-      pthread_mutex_unlock(&utenti_mutex); // Sblocca il mutex
-      return 0;                            // Nome utente già esistente
+    {
+      pthread_mutex_unlock(&utenti_mutex);
+      return 0; // Nome già esistente
     }
-    curr = curr->next; // Passa al prossimo utente
+    curr = curr->next;
   }
 
-  Utente *nuovo_utente = (Utente *)malloc(sizeof(Utente));       // Alloca memoria per un nuovo utente
-  strncpy(nuovo_utente->nome, nome, sizeof(nuovo_utente->nome)); // Copia il nome dell'utente
-  nuovo_utente->punteggio = 0;                                   // Inizializza il punteggio a 0
-  nuovo_utente->next = utenti_head;                              // Inserisce il nuovo utente all'inizio della lista
-  utenti_head = nuovo_utente;                                    // Aggiorna la testa della lista
+  // Creazione nuovo utente
+  Utente *nuovo_utente = (Utente *)malloc(sizeof(Utente));
+  strncpy(nuovo_utente->nome, nome, sizeof(nuovo_utente->nome));
+  nuovo_utente->nome[sizeof(nuovo_utente->nome) - 1] = '\0';
+  nuovo_utente->punteggio = 0;
+  nuovo_utente->next = utenti_head;
+  utenti_head = nuovo_utente;
 
-  pthread_mutex_unlock(&utenti_mutex); // Sblocca il mutex
-  return 1;                            // Registrazione avvenuta con successo
-}
-
-// Funzione che verifica se la parola è valida nella matrice
-int verifica_parola(const char *parola, Matrice *mat)
-{
-  // Questa è una versione semplificata che può essere espansa con la logica effettiva
-  // Per ora assume che tutte le parole sono valide
+  pthread_mutex_unlock(&utenti_mutex);
   return 1;
 }
 
-// Funzione che calcola il punteggio di una parola
+// Funzione (stub) per verificare se la parola è valida nella matrice
+int verifica_parola(const char *parola, const Matrice *mat)
+{
+  // Da implementare la logica di verifica (Boggle-like)
+  // Per ora ritorna 1 (tutte valide)
+  return 1;
+}
+
+// Calcola il punteggio di una parola (stub semplificato: lunghezza parola)
 int calcola_punteggio(const char *parola)
 {
-  // Per ora assume un punto per ogni lettera
-  return strlen(parola);
+  return (int)strlen(parola);
 }
 
-// Funzione per aggiornare il punteggio di un utente
+// Aggiorna il punteggio di un utente
 void aggiorna_punteggio(const char *nome, int punteggio)
 {
-  pthread_mutex_lock(&utenti_mutex); // Blocca il mutex per la protezione della lista utenti
-
-  Utente *curr = utenti_head; // Puntatore al primo utente nella lista
+  pthread_mutex_lock(&utenti_mutex);
+  Utente *curr = utenti_head;
   while (curr != NULL)
-  { // Scorre la lista degli utenti
+  {
     if (strcmp(curr->nome, nome) == 0)
-    {                               // Trova l'utente con il nome specificato
-      curr->punteggio += punteggio; // Aggiorna il punteggio dell'utente
-      break;                        // Esce dal ciclo
+    {
+      curr->punteggio += punteggio;
+      break;
     }
-    curr = curr->next; // Passa al prossimo utente
+    curr = curr->next;
   }
-
-  pthread_mutex_unlock(&utenti_mutex); // Sblocca il mutex
+  pthread_mutex_unlock(&utenti_mutex);
 }
 
-// Funzione per gestire la ricezione di una parola dal client
+// Funzione per gestire la ricezione di una parola (nome + parola)
 void handle_parola(int client_socket, const char *nome, const char *parola)
 {
-  char response_type;           // Tipo di messaggio di risposta
-  unsigned int response_length; // Lunghezza del messaggio di risposta
-  char response_data[1024];     // Buffer per il messaggio di risposta
+  char response_type;
+  char response_data[1024];
+  memset(response_data, 0, sizeof(response_data));
 
   if (verifica_parola(parola, &mat))
-  {                                            // Verifica se la parola è valida
-    int punteggio = calcola_punteggio(parola); // Calcola il punteggio della parola
-    aggiorna_punteggio(nome, punteggio);       // Aggiorna il punteggio dell'utente
+  {
+    int punteggio = calcola_punteggio(parola);
+    aggiorna_punteggio(nome, punteggio);
 
-    response_type = MSG_PUNTI_PAROLA;                          // Imposta il tipo di messaggio a punti parola
-    sprintf(response_data, "Punteggio parola: %d", punteggio); // Prepara il messaggio di risposta con il punteggio
+    response_type = MSG_PUNTI_PAROLA;
+    sprintf(response_data, "Punteggio parola: %d", punteggio);
   }
   else
   {
-    response_type = MSG_ERR;                    // Imposta il tipo di messaggio a errore
-    strcpy(response_data, "Parola non valida"); // Prepara il messaggio di errore
+    response_type = MSG_ERR;
+    strcpy(response_data, "Parola non valida");
   }
 
-  response_length = strlen(response_data); // Calcola la lunghezza del messaggio di risposta
-
-  write(client_socket, &response_type, sizeof(response_type));     // Invia il tipo di messaggio
-  write(client_socket, &response_length, sizeof(response_length)); // Invia la lunghezza del messaggio
-  write(client_socket, response_data, response_length);            // Invia il messaggio di risposta
+  send_message(client_socket, response_type, response_data);
 }
 
-// Funzione per gestire la comunicazione con il client
+// Thread che gestisce un client specifico
 void *handle_client(void *client_socket)
 {
-  int sock = *(int *)client_socket; // Ottiene il file descriptor del socket del client
-  free(client_socket);              // Libera la memoria allocata per il file descriptor
+  int sock = *(int *)client_socket;
+  free(client_socket);
 
   char type;           // Tipo di messaggio
-  unsigned int length; // Lunghezza del messaggio
-  char data[1024];
+  unsigned int length; // Lunghezza dei dati
+  char data[1024];     // Buffer di ricezione
 
   while (1)
-  {                                   // Legge i dati dal client finché ci sono dati da leggere
+  {
+    // Leggiamo un messaggio dal client
     receive_message(sock, &type, &length, data);
 
-    char response_type = MSG_OK;  // Tipo di messaggio di risposta predefinito
-    unsigned int response_length; // Lunghezza del messaggio di risposta
-    char* response_data;     // Buffer per il messaggio di risposta
+    // Preparo la risposta
+    char response_type = MSG_OK;
+    char response_data[1024];
+    memset(response_data, 0, sizeof(response_data));
 
     switch (type)
     {
-      case MSG_REGISTRA_UTENTE:
-        printf("Richiesta di registrazione utente: %s\n", data); // Stampa il nome utente
-        if (registra_utente(data))
-        {                                                               // Registra l'utente
-          strcpy(response_data, "Registrazione avvenuta con successo"); // Prepara il messaggio di successo
-        }
-        else
-        {
-          // TODO controllare se il nome utente è più lungo di 10 caratteri 
-          response_type = MSG_ERR;                            // Imposta il tipo di messaggio a errore
-          strcpy(response_data, "Nome utente già esistente"); // Prepara il messaggio di errore
-        }
-        response_length = strlen(response_data); // Calcola la lunghezza del messaggio di risposta
-        break;
-      case MSG_MATRICE:
-        response_type = MSG_MATRICE; // Imposta il tipo di messaggio a matrice
-        response_data = (char *)&mat; // Imposta i dati di risposta alla matrice
-        continue;
-      case MSG_TEMPO_ATTESA:
-        response_type = MSG_TEMPO_ATTESA; // Imposta il tipo di messaggio a tempo attesa
-        response_data = (char *)&tempo_attesa; // Imposta i dati di risposta al tempo di attesa
-        continue;
-      case MSG_TEMPO_PARTITA:
-        response_type = MSG_TEMPO_PARTITA; // Imposta il tipo di messaggio a tempo partita
-        response_data = (char *)&tempo_partita; // Imposta i dati di risposta al tempo di partita
-        continue;
-      case MSG_PAROLA:
-        // char *nome = data;                // Ottiene il nome utente dal messaggio
-        // char *parola = nome + strlen(nome) + 1; // Ottiene la parola dal messaggio
-        // handle_parola(sock, nome, parola);      // Gestisce la parola
-        continue;
-      default:
-        response_type = MSG_ERR;                             // Imposta il tipo di messaggio a errore
-        strcpy(response_data, "Messaggio non riconosciuto"); // Prepara il messaggio di errore
-        response_length = strlen(response_data);             // Calcola la lunghezza del messaggio di risposta
-        break;
+    case MSG_REGISTRA_UTENTE:
+      if (registra_utente(data))
+      {
+        strcpy(response_data, "Registrazione avvenuta con successo");
+      }
+      else
+      {
+        response_type = MSG_ERR;
+        strcpy(response_data, "Nome utente già esistente o non valido");
+      }
+      break;
+
+    case MSG_MATRICE:
+      // Convertiamo la matrice in formato testuale
+      response_type = MSG_MATRICE;
+      matrice_to_string(&mat, response_data, sizeof(response_data));
+      break;
+
+    case MSG_TEMPO_ATTESA:
+      response_type = MSG_TEMPO_ATTESA;
+      sprintf(response_data, "%d", tempo_attesa);
+      break;
+
+    case MSG_TEMPO_PARTITA:
+      response_type = MSG_TEMPO_PARTITA;
+      sprintf(response_data, "%d", tempo_partita);
+      break;
+
+    case MSG_PAROLA:
+      // Esempio: ipotizziamo `data` contenga "NOME\0PAROLA"
+      // Occorre separare il nome dalla parola.
+      // Oppure puoi decidere un protocollo diverso.
+      // Per ora ipotizziamo di doverlo fare manualmente:
+      {
+        char nome[50];
+        char parola[50];
+        memset(nome, 0, sizeof(nome));
+        memset(parola, 0, sizeof(parola));
+
+        // Copio la prima stringa (nome)
+        strcpy(nome, data);
+        // La parola inizia subito dopo il '\0' del nome
+        const char *p = data + strlen(nome) + 1;
+        strcpy(parola, p);
+
+        // Gestiamo la parola
+        handle_parola(sock, nome, parola);
+      }
+      // Gestito direttamente, saltiamo il send_message sotto
+      continue;
+      break;
+
+    default:
+      response_type = MSG_ERR;
+      strcpy(response_data, "Messaggio non riconosciuto");
+      break;
     }
 
-    send_message(sock, response_type, response_data); // Invia il messaggio di risposta al client
+    // Invia la risposta
+    send_message(sock, response_type, response_data);
   }
 
-  close(sock); // Chiude il socket del client
+  close(sock);
   return NULL;
 }
 
-// Funzione principale
+// Funzione principale del server
 int main(int argc, char *argv[])
 {
-  int server_fd, new_socket;     // File descriptor per il server e il nuovo socket del client
-  struct sockaddr_in address;    // Struttura per l'indirizzo del server
-  int addrlen = sizeof(address); // Lunghezza dell'indirizzo
+  if (argc < 3)
+  {
+    fprintf(stderr, "Uso: %s <IP> <PORTA> [file_matrice] [tempo_attesa] [tempo_partita]\n", argv[0]);
+    exit(EXIT_FAILURE);
+  }
 
+  // Se sono stati passati più argomenti, leggiamo la matrice da file o parametri
+  // altrimenti generiamo una matrice casuale
   if (argc >= 4)
-  { // Controlla il numero di argomenti
+  {
+    // argv[3] = file matrice
     if (leggi_matrice_da_file(&mat, argv[3]) != 0)
-    {                                                     // Legge la matrice dal file
-      fprintf(stderr, "Errore nella lettura del file\n"); // Stampa un messaggio di errore se la lettura fallisce
-      return 1;                                           // Termina il programma con errore
+    {
+      fprintf(stderr, "Errore nella lettura del file %s\n", argv[3]);
+      return 1;
     }
-    tempo_attesa = atoi(argv[4]);  // Ottiene il tempo di attesa dal secondo argomento
-    tempo_partita = atoi(argv[5]); // Ottiene il tempo di partita dal terzo argomento
+
+    if (argc >= 5)
+      tempo_attesa = atoi(argv[4]);
+    if (argc >= 6)
+      tempo_partita = atoi(argv[5]);
   }
   else
   {
-    genera_matrice_casuale(&mat); // Genera una matrice casuale se non sono forniti argomenti sufficienti
+    genera_matrice_casuale(&mat);
   }
 
-  if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0)
-  {                          // Crea il socket del server
-    perror("socket failed"); // Stampa un messaggio di errore se la creazione del socket fallisce
-    exit(EXIT_FAILURE);      // Termina il programma con errore
+  int server_fd;
+  struct sockaddr_in address;
+  socklen_t addrlen = sizeof(address);
+
+  // Creazione socket
+  if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+  {
+    perror("socket failed");
+    exit(EXIT_FAILURE);
   }
 
-  address.sin_family = AF_INET;                 // Imposta la famiglia di indirizzi
-  address.sin_port = htons(atoi(argv[2]));      // Imposta la porta del server
-  address.sin_addr.s_addr = inet_addr(argv[1]); // Imposta l'indirizzo IP del server
+  // Configuriamo indirizzo e porta
+  address.sin_family = AF_INET;
+  address.sin_port = htons(atoi(argv[2]));
+  address.sin_addr.s_addr = inet_addr(argv[1]);
 
+  // Bind
   if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0)
-  {                        // Associa il socket del server all'indirizzo e alla porta specificati
-    perror("bind failed"); // Stampa un messaggio di errore se la bind fallisce
-    close(server_fd);      // Chiude il socket del server
-    exit(EXIT_FAILURE);    // Termina il programma con errore
+  {
+    perror("bind failed");
+    close(server_fd);
+    exit(EXIT_FAILURE);
   }
 
+  // Listen
   if (listen(server_fd, MAX_CLIENTS) < 0)
-  {                          // Imposta il socket del server in ascolto per le connessioni in ingresso
-    perror("listen failed"); // Stampa un messaggio di errore se la listen fallisce
-    close(server_fd);        // Chiude il socket del server
-    exit(EXIT_FAILURE);      // Termina il programma con errore
+  {
+    perror("listen failed");
+    close(server_fd);
+    exit(EXIT_FAILURE);
   }
 
-  printf("Server in ascolto su porta %d\n", atoi(argv[2])); // Stampa un messaggio indicando che il server è in ascolto sulla porta specificata
+  printf("Server in ascolto su %s:%s ...\n", argv[1], argv[2]);
 
+  // Loop per accettare i client
   while (1)
-  { // Loop infinito per accettare e gestire le connessioni dei client
-    if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t *)&addrlen)) < 0)
-    {                          // Accetta una connessione in ingresso
-      perror("accept failed"); // Stampa un messaggio di errore se l'accettazione della connessione fallisce
+  {
+    int new_socket = accept(server_fd, (struct sockaddr *)&address, &addrlen);
+    if (new_socket < 0)
+    {
+      perror("accept failed");
       continue;
     }
 
-    printf("Connessione accettata\n"); // Stampa un messaggio indicando che la connessione è stata accettata
+    printf("Connessione accettata da un client.\n");
 
-    pthread_t thread_id;                    // Crea un nuovo thread per gestire la comunicazione con il client
-    int *client_sock = malloc(sizeof(int)); // Alloca memoria per il file descriptor del socket del client
-    *client_sock = new_socket;              // Assegna il nuovo socket del client
+    // Lancio un thread per gestire il nuovo client
+    pthread_t thread_id;
+    int *client_sock = malloc(sizeof(int));
+    *client_sock = new_socket;
 
     if (pthread_create(&thread_id, NULL, handle_client, (void *)client_sock) != 0)
-    {                                  // Crea il thread e chiama la funzione handle_client
-      perror("pthread_create failed"); // Stampa un messaggio di errore se la creazione del thread fallisce
-      close(new_socket);               // Chiude il socket del client
-      free(client_sock);               // Libera la memoria allocata per il file descriptor
+    {
+      perror("pthread_create failed");
+      close(new_socket);
+      free(client_sock);
     }
+    // Se vuoi, puoi fare anche pthread_detach(thread_id);
+    // per non dover fare join in futuro.
   }
 
-  close(server_fd); // Chiude il socket del server (questo punto non verrà mai raggiunto a causa del loop infinito)
-  return 0;         // Termina il programma con successo
+  close(server_fd);
+  return 0;
 }
