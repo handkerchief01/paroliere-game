@@ -64,19 +64,6 @@ int leggi_matrice_da_file(Matrice *mat, const char *filename)
   return 0;
 }
 
-// Stampa la matrice su stdout (utile per debug locale)
-void stampa_matrice(const Matrice *mat)
-{
-  for (int i = 0; i < MATRIX_SIZE; i++)
-  {
-    for (int j = 0; j < MATRIX_SIZE; j++)
-    {
-      printf("%s ", mat->matrice[i][j]);
-    }
-    printf("\n");
-  }
-}
-
 // Converte la matrice in una stringa (testuale) da inviare al client
 void matrice_to_string(const Matrice *mat, char *dest, size_t size)
 {

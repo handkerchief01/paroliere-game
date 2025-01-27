@@ -32,43 +32,15 @@ void print_help()
 {
   printf("Comandi disponibili:\n");
   printf("aiuto -> Mostra questo messaggio di aiuto\n");
-  printf("registra utente <nome_utente> -> Registra un nuovo utente\n");
+  printf("registra utente <nome_utente> -> Registra un nuovo utente (sono ammessi solo caratteri alfanumerici dell'alfabeto italiano)\n");
   printf("matrice -> Richiede la matrice corrente (devi essere registrato)\n");
   printf("p <parola> -> Invia una parola al server (devi essere registrato)\n");
   printf("fine -> Esci dal gioco\n");
 }
 
-// Funzione per stampare la matrice
 void print_matrice(const char *data)
 {
-  char matrice[4][4][4];
-  int index = 0;
-
-  // Parsing della stringa ricevuta per ottenere la matrice
-  for (int i = 0; i < 4; i++)
-  {
-    for (int j = 0; j < 4; j++)
-    {
-      strncpy(matrice[i][j], &data[index], 3);
-      matrice[i][j][3] = '\0';
-      index += 3;
-    }
-  }
-
-  // Parsing del tempo residuo
-  int tempo_residuo = atoi(&data[index]);
-
-  // Stampa della matrice
-  printf("Matrice:\n");
-  for (int i = 0; i < 4; i++)
-  {
-    for (int j = 0; j < 4; j++)
-    {
-      printf("%s ", matrice[i][j]);
-    }
-    printf("\n");
-  }
-  printf("Tempo residuo: %d secondi\n", tempo_residuo);
+  printf("Matrice ricevuta:\n%s\n", data);
 }
 
 int main(int argc, char *argv[])
@@ -193,8 +165,6 @@ int main(int argc, char *argv[])
         unsigned int length;
         char data[1024];
         receive_message(sock, &type, &length, data);
-
-        printf("Ricevuto dal server: Type=%c, Length=%u, Data=%s\n", type, length, data);
 
         if (type == MSG_OK)
         {

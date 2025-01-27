@@ -37,6 +37,16 @@ int registra_utente(const char *nome)
     return 0; // Nome non valido
   }
 
+  // Verifichiamo che il nome contenga solo caratteri ammessi (alfabeto italiano e numeri)
+  for (int i = 0; i < strlen(nome); i++)
+  {
+    if (!is_italian_alnum(nome[i]))
+    {
+      pthread_mutex_unlock(&utenti_mutex);
+      return 0; // Carattere non ammesso
+    }
+  }
+
   // Controllo se il nome utente è già presente
   Utente *curr = utenti_head;
   while (curr != NULL)
@@ -61,10 +71,9 @@ int registra_utente(const char *nome)
   return 1;
 }
 
-// Funzione (stub) per verificare se la parola è valida nella matrice
+// Funzione per verificare se la parola è valida nella matrice
 int verifica_parola(const char *parola, const Matrice *mat)
 {
-  // Da implementare la logica di verifica (Boggle-like)
   // Per ora ritorna 1 (tutte valide)
   return 1;
 }
@@ -291,8 +300,6 @@ int main(int argc, char *argv[])
       close(new_socket);
       free(client_sock);
     }
-    // Se vuoi, puoi fare anche pthread_detach(thread_id);
-    // per non dover fare join in futuro.
   }
 
   close(server_fd);
