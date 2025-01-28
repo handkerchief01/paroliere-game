@@ -4,6 +4,10 @@
 #include <string.h>
 #include <time.h>
 
+#define MAX_MATRICI 100
+static Matrice array_matrici[MAX_MATRICI];
+static int count_matrici = 0;
+
 const char *lettere_possibili[] = {
     "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P",
     "Qu", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"};
@@ -24,44 +28,6 @@ void genera_matrice_casuale(Matrice *mat)
       mat->matrice[i][j][3] = '\0'; // Assicuro terminazione
     }
   }
-}
-
-// Legge la matrice da file. Il file deve avere 4 righe con 4 parole/colonne ciascuna
-int leggi_matrice_da_file(Matrice *mat, const char *filename)
-{
-  FILE *file = fopen(filename, "r");
-  if (file == NULL)
-  {
-    perror("Errore nell'apertura del file");
-    return -1;
-  }
-
-  char buffer[100];
-  int row = 0;
-
-  while (fgets(buffer, sizeof(buffer), file) && row < MATRIX_SIZE)
-  {
-    char *token = strtok(buffer, " \t\n\r");
-    int col = 0;
-    while (token != NULL && col < MATRIX_SIZE)
-    {
-      strncpy(mat->matrice[row][col], token, 3);
-      mat->matrice[row][col][3] = '\0';
-      token = strtok(NULL, " \t\n\r");
-      col++;
-    }
-    row++;
-  }
-
-  fclose(file);
-
-  if (row != MATRIX_SIZE)
-  {
-    fprintf(stderr, "Errore: il file non contiene abbastanza righe.\n");
-    return -1;
-  }
-
-  return 0;
 }
 
 // Converte la matrice in una stringa (testuale) da inviare al client

@@ -11,7 +11,6 @@ typedef struct
 
 // Dichiarazione delle funzioni
 void genera_matrice_casuale(Matrice *mat);
-int leggi_matrice_da_file(Matrice *mat, const char *filename);
 void stampa_matrice(const Matrice *mat);
 
 #endif // MATRICE_H

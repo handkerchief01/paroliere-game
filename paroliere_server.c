@@ -15,11 +15,17 @@
 
 // Numero massimo di client in coda di connessione
 #define MAX_CLIENTS 32
+#define MAX_MATRICI 100 // numero massimo di righe/matrici nel file
 
 // Variabili globali
-Matrice mat;                                              // Matrice di gioco 4x4
+Matrice mat_attuale;                                      // Matrice di gioco 4x4
 Utente *utenti_head = NULL;                               // Lista utenti collegati
 pthread_mutex_t utenti_mutex = PTHREAD_MUTEX_INITIALIZER; // Mutex per proteggere la lista
+
+Matrice array_matrici[MAX_MATRICI];                       // tutte le matrici lette
+int count_matrici = 0;                                    // quante righe/matrici abbiamo letto
+int current_index = 0;                                    // indice della prossima matrice da usare
+
 int tempo_attesa = 30;                                    // Tempo di attesa (s)
 int tempo_partita = 60;                                   // Tempo di partita (s)
 
@@ -108,7 +114,7 @@ void handle_parola(int client_socket, const char *nome, const char *parola)
   char response_data[1024];
   memset(response_data, 0, sizeof(response_data));
 
-  if (verifica_parola(parola, &mat))
+  if (verifica_parola(parola, &mat_attuale))
   {
     int punteggio = calcola_punteggio(parola);
     aggiorna_punteggio(nome, punteggio);
@@ -162,7 +168,7 @@ void *handle_client(void *client_socket)
     case MSG_MATRICE:
       // Convertiamo la matrice in formato testuale
       response_type = MSG_MATRICE;
-      matrice_to_string(&mat, response_data, sizeof(response_data));
+      matrice_to_string(&mat_attuale, response_data, sizeof(response_data));
       break;
 
     case MSG_TEMPO_ATTESA:
@@ -213,6 +219,83 @@ void *handle_client(void *client_socket)
   return NULL;
 }
 
+int leggi_tutte_le_matrici(const char *filename)
+{
+  FILE *f = fopen(filename, "r");
+  if (!f)
+  {
+    perror("Errore apertura file matrici");
+    return -1;
+  }
+  count_matrici = 0;
+
+  char buffer[256];
+  while (fgets(buffer, sizeof(buffer), f))
+  {
+    // Stampiamo la riga grezza letta (debug)
+    printf("Riga letta: '%s'\n", buffer);
+
+    // Se la riga è vuota, skip
+    if (buffer[0] == '\n' || buffer[0] == '\0')
+    {
+      printf(" -> Riga vuota, salto.\n");
+      continue;
+    }
+
+    // Parse 16 token
+    char *token = strtok(buffer, " \t\r\n");
+    int tokenCount = 0;
+    while (token && tokenCount < 16)
+    {
+      printf("   Token #%d: '%s'\n", tokenCount + 1, token); // debug
+      strncpy(array_matrici[count_matrici].matrice[tokenCount / 4][tokenCount % 4],
+              token, 3);
+      array_matrici[count_matrici].matrice[tokenCount / 4][tokenCount % 4][3] = '\0';
+      tokenCount++;
+      token = strtok(NULL, " \t\r\n");
+    }
+    printf(" => Trovati %d token in questa riga.\n", tokenCount);
+
+    // Se la riga ha 16 token validi, contiamo questa matrice
+    if (tokenCount == 16)
+    {
+      count_matrici++;
+      printf(" -> OK, matrice %d caricata.\n", count_matrici);
+      if (count_matrici >= MAX_MATRICI)
+      {
+        printf("Raggiunto il limite di %d matrici.\n", MAX_MATRICI);
+        break;
+      }
+    }
+    else
+    {
+      printf(" -> Riga con tokenCount != 16, ignorata.\n");
+    }
+  }
+
+  fclose(f);
+
+  printf("Totale matrici caricate: %d\n", count_matrici);
+  return 0;
+}
+
+int get_next_matrice(Matrice *dest)
+{
+  if (count_matrici == 0)
+  {
+    fprintf(stderr, "Nessuna matrice caricata!\n");
+    return -1;
+  }
+
+  // Copia la matrice dall'array in dest
+  *dest = array_matrici[current_index];
+
+  // Avanziamo l'indice in modo circolare (se vuoi riusare in loop)
+  // o lo incrementi fino a fermarti all'ultima
+  current_index = (current_index + 1) % count_matrici;
+  return 0;
+}
+
 // Funzione principale del server
 int main(int argc, char *argv[])
 {
@@ -222,32 +305,42 @@ int main(int argc, char *argv[])
     exit(EXIT_FAILURE);
   }
 
-  // Se sono stati passati più argomenti, leggiamo la matrice da file o parametri
-  // altrimenti generiamo una matrice casuale
+  // Se c'è un file di matrici, lo leggiamo tutto
   if (argc >= 4)
   {
-    // argv[3] = file matrice
-    if (leggi_matrice_da_file(&mat, argv[3]) != 0)
+    if (leggi_tutte_le_matrici(argv[3]) != 0)
     {
       fprintf(stderr, "Errore nella lettura del file %s\n", argv[3]);
       return 1;
     }
-
-    if (argc >= 5)
-      tempo_attesa = atoi(argv[4]);
-    if (argc >= 6)
-      tempo_partita = atoi(argv[5]);
   }
   else
   {
-    genera_matrice_casuale(&mat);
+    genera_matrice_casuale(&mat_attuale);
+    count_matrici = 1;
   }
 
+  // Eventuali parametri di tempo
+  if (argc >= 5)
+    tempo_attesa = atoi(argv[4]);
+  if (argc >= 6)
+    tempo_partita = atoi(argv[5]);
+
+  // Impostiamo la matrice iniziale (se vuoi che la prima partita inizi con la prima riga)
+  // Oppure la prendi ogni volta che parte davvero la partita, dipende da te
+  get_next_matrice(&mat_attuale);
+
+  // Nel resto del server 'mat_attuale' è la matrice "corrente". Oppure
+  // potresti salvare 'mat_attuale' in una variabile globale se serve.
+  // ...
+  // Oppure nel tuo `handle_client` o dove fai partire una nuova partita,
+  // chiami get_next_matrice(&mat_attuale).
+
+  // Creazione socket
   int server_fd;
   struct sockaddr_in address;
   socklen_t addrlen = sizeof(address);
 
-  // Creazione socket
   if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
   {
     perror("socket failed");
@@ -289,10 +382,16 @@ int main(int argc, char *argv[])
 
     printf("Connessione accettata da un client.\n");
 
-    // Lancio un thread per gestire il nuovo client
+    // Crea un thread per gestire il nuovo client
     pthread_t thread_id;
     int *client_sock = malloc(sizeof(int));
     *client_sock = new_socket;
+
+    // Esempio: se vuoi che ogni client parta con la "prossima" matrice:
+    // get_next_matrice(&mat_attuale);
+    // ... e passi mat_attuale al thread in qualche modo
+    // (per ora potresti passare un puntatore globale, dipende dal design).
+    // Oppure la matrice si cambia solo a inizio partita, etc.
 
     if (pthread_create(&thread_id, NULL, handle_client, (void *)client_sock) != 0)
     {
