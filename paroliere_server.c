@@ -137,14 +137,15 @@ void *handle_client(void *client_socket)
   int sock = *(int *)client_socket;
   free(client_socket);
 
-  char type;           // Tipo di messaggio
-  unsigned int length; // Lunghezza dei dati
-  char data[1024];     // Buffer di ricezione
+  char type;
+  int size;
+  char data[1024];
+  
 
   while (1)
   {
     // Leggiamo un messaggio dal client
-    receive_message(sock, &type, &length, data);
+    receive_message(sock, &type, &size, data);
 
     // Preparo la risposta
     char response_type = MSG_OK;
@@ -318,6 +319,7 @@ int main(int argc, char *argv[])
   {
     genera_matrice_casuale(&mat_attuale);
     count_matrici = 1;
+    array_matrici[0] = mat_attuale;
   }
 
   // Eventuali parametri di tempo
@@ -329,10 +331,7 @@ int main(int argc, char *argv[])
   // Impostiamo la matrice iniziale (se vuoi che la prima partita inizi con la prima riga)
   // Oppure la prendi ogni volta che parte davvero la partita, dipende da te
   get_next_matrice(&mat_attuale);
-
-  // Nel resto del server 'mat_attuale' è la matrice "corrente". Oppure
-  // potresti salvare 'mat_attuale' in una variabile globale se serve.
-  // ...
+  
   // Oppure nel tuo `handle_client` o dove fai partire una nuova partita,
   // chiami get_next_matrice(&mat_attuale).
 

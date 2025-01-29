@@ -162,9 +162,9 @@ int main(int argc, char *argv[])
       // Riceve la risposta dal server
       {
         char type;
-        unsigned int length;
+        int size;
         char data[1024];
-        receive_message(sock, &type, &length, data);
+        receive_message(sock, &type, &size, data);
 
         if (type == MSG_OK)
         {
@@ -194,11 +194,11 @@ int main(int argc, char *argv[])
         // Riceve la risposta dal server
         {
           char type;
-          unsigned int length;
+          int size;
           char data[1024];
-          receive_message(sock, &type, &length, data);
+          receive_message(sock, &type, &size, data);
 
-          printf("Ricevuto dal server: Type=%c, Length=%u, Data=%s\n", type, length, data);
+          printf("Ricevuto dal server: Type=%c, Length=%u, Data=%s\n", type, size, data);
 
           if (type == MSG_MATRICE)
           {
@@ -228,11 +228,11 @@ int main(int argc, char *argv[])
         // Riceve la risposta dal server
         {
           char type;
-          unsigned int length;
+          int size;
           char data[1024];
-          receive_message(sock, &type, &length, data);
+          receive_message(sock, &type, &size, data);
 
-          printf("Ricevuto dal server: Type=%c, Length=%u, Data=%s\n", type, length, data);
+          printf("Ricevuto dal server: Type=%c, Length=%u, Data=%s\n", type, size, data);
 
           if (type == MSG_PUNTI_PAROLA)
           {

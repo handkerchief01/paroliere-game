@@ -4,10 +4,6 @@
 #include <string.h>
 #include <time.h>
 
-#define MAX_MATRICI 100
-static Matrice array_matrici[MAX_MATRICI];
-static int count_matrici = 0;
-
 const char *lettere_possibili[] = {
     "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P",
     "Qu", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"};

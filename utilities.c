@@ -2,27 +2,59 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-
 #include "structs.h"
 #include "macros.h"
 #include "utilities.h"
 
-void send_message(int sock, char type, const char *data){
+void send_message(int sock, char type, const char *data)
+{
   int ret;
-  unsigned int length = strlen(data);
+  // Calcoliamo la lunghezza del payload
+  int size = (data == NULL) ? 0 : strlen(data);
 
-  SYSC(ret, write(sock, (void *)&type, sizeof(char)), "Write error");
-  SYSC(ret, write(sock, (void *)&length, sizeof(unsigned int)), "Write error");
-  SYSC(ret, write(sock, (void *)(data), sizeof(char) * length), "Write error");
+  // 1) Inviamo la dimensione (int)
+  SYSC(ret, write(sock, &size, sizeof(int)), "Write error: size");
+
+  // 2) Inviamo il tipo (char)
+  SYSC(ret, write(sock, &type, sizeof(char)), "Write error: type");
+
+  // 3) Inviamo il payload (size byte, se > 0)
+  if (size > 0)
+  {
+    SYSC(ret, write(sock, data, size), "Write error: payload");
+  }
 }
 
-void receive_message(int sock, char *type, unsigned int *length, char *data){
+void receive_message(int sock, char *type, int *size, char *data)
+{
   int ret;
-  
-  SYSC(ret, read(sock, (void *)type, sizeof(char)), "Read error");
-  SYSC(ret, read(sock, (void *)length, sizeof(unsigned int)), "Read error");
-  SYSC(ret, read(sock, (void *)data, sizeof(char) * (*length)), "Read error");
-  data[*length] = '\0';
+
+  // 1) Leggiamo la dimensione (int)
+  SYSC(ret, read(sock, size, sizeof(int)), "Read error: size");
+  if (ret <= 0)
+  {
+    // Se ret=0, connessione chiusa; se <0, errore
+    // Potresti gestire qui la chiusura o eccezione
+  }
+
+  // 2) Leggiamo il tipo (char)
+  SYSC(ret, read(sock, type, sizeof(char)), "Read error: type");
+  if (ret <= 0)
+  {
+    // gestione errore/chiusura
+  }
+
+  // 3) Leggiamo il payload (se size > 0)
+  if (*size > 0)
+  {
+    SYSC(ret, read(sock, data, *size), "Read error: payload");
+    data[*size] = '\0'; // terminatore di stringa
+  }
+  else
+  {
+    // payload vuoto
+    data[0] = '\0';
+  }
 }
 
 int is_italian_alnum(char c)

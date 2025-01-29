@@ -11,6 +11,5 @@ typedef struct
 
 // Dichiarazione delle funzioni
 void genera_matrice_casuale(Matrice *mat);
-void stampa_matrice(const Matrice *mat);
 
 #endif // MATRICE_H
