@@ -12,6 +12,7 @@
 #include "matrice.h"
 #include "structs.h"
 #include "utilities.h"
+#include <signal.h>
 
 // Numero massimo di client in coda di connessione
 #define MAX_CLIENTS 32
@@ -27,7 +28,18 @@ int count_matrici = 0;                                    // quante righe/matric
 int current_index = 0;                                    // indice della prossima matrice da usare
 
 int tempo_attesa = 30;                                    // Tempo di attesa (s)
-int tempo_partita = 60;                                   // Tempo di partita (s)
+int tempo_partita = 60;
+
+// Stato della partita: 0 = pausa (tempo di attesa), 1 = partita in corso.
+volatile sig_atomic_t partitaInCorso = 0;
+
+// Tempo residuo nell'intervallo corrente (in secondi)
+volatile sig_atomic_t tempo_residuo = 0;
+
+// Durate (in secondi)
+int TEMPO_PARTITA = 60; // Valore da riga di comando (o default)
+int TEMPO_PAUSA = 60;   // Sempre 60 secondi di pausa                                   // Tempo di partita (s)
+// --------------------------------------------
 
 // Funzione per registrare un utente nella lista
 int registra_utente(const char *nome)
@@ -107,6 +119,35 @@ void aggiorna_punteggio(const char *nome, int punteggio)
   pthread_mutex_unlock(&utenti_mutex);
 }
 
+void alarm_handler(int signum)
+{
+  // Decrementa il tempo residuo
+  tempo_residuo--;
+
+  // Se il tempo scade
+  if (tempo_residuo <= 0)
+  {
+    if (partitaInCorso == 1)
+    {
+      // Se eravamo in partita, la partita è terminata: passiamo alla pausa
+      partitaInCorso = 0;
+      tempo_residuo = TEMPO_PAUSA;
+      write(STDOUT_FILENO, "Partita terminata. Inizia la pausa.\n", 36);
+    }
+    else
+    {
+      // Se eravamo in pausa, la pausa è finita: inizia la partita
+      partitaInCorso = 1;
+      tempo_residuo = TEMPO_PARTITA;
+      // Per la nuova partita, aggiorniamo la matrice (per esempio, prendiamo la successiva)
+      get_next_matrice(&mat_attuale);
+      write(STDOUT_FILENO, "Pausa terminata. La partita inizia.\n", 36);
+    }
+  }
+  // Reimposta l'allarme per il prossimo secondo
+  alarm(1);
+}
+
 // Funzione per gestire la ricezione di una parola (nome + parola)
 void handle_parola(int client_socket, const char *nome, const char *parola)
 {
@@ -157,7 +198,22 @@ void *handle_client(void *client_socket)
     case MSG_REGISTRA_UTENTE:
       if (registra_utente(data))
       {
-        strcpy(response_data, "Registrazione avvenuta con successo");
+        char matrix_str[1024];
+        matrice_to_string(&mat_attuale, matrix_str, sizeof(matrix_str));
+        if (partitaInCorso == 1)
+        {
+          sprintf(response_data,
+                  "Registrazione avvenuta con successo\n%s\nPartita in corso, tempo residuo: %d secondi",
+                  matrix_str, tempo_residuo);
+        }
+        else
+        {
+          sprintf(response_data,
+                  "Registrazione avvenuta con successo\n%s\nPartita pausa, tempo residuo: %d secondi",
+                  matrix_str, tempo_residuo);
+        }
+
+        response_type = MSG_REGISTRA_UTENTE;
       }
       else
       {
@@ -174,12 +230,12 @@ void *handle_client(void *client_socket)
 
     case MSG_TEMPO_ATTESA:
       response_type = MSG_TEMPO_ATTESA;
-      sprintf(response_data, "%d", tempo_attesa);
+      sprintf(response_data, "%d", tempo_residuo);
       break;
 
     case MSG_TEMPO_PARTITA:
       response_type = MSG_TEMPO_PARTITA;
-      sprintf(response_data, "%d", tempo_partita);
+      sprintf(response_data, "%d", tempo_residuo);
       break;
 
     case MSG_PAROLA:
@@ -324,9 +380,22 @@ int main(int argc, char *argv[])
 
   // Eventuali parametri di tempo
   if (argc >= 5)
-    tempo_attesa = atoi(argv[4]);
+    TEMPO_PAUSA = atoi(argv[4]);
   if (argc >= 6)
-    tempo_partita = atoi(argv[5]);
+    TEMPO_PARTITA = atoi(argv[5]);
+
+  if (signal(SIGALRM, alarm_handler) == SIG_ERR)
+  {
+    perror("Errore nell'installazione del gestore SIGALRM");
+    exit(EXIT_FAILURE);
+  }
+
+  // Imposta lo stato iniziale: il server parte in pausa (attesa)
+  partitaInCorso = 0;
+  tempo_residuo = TEMPO_PAUSA; // oppure usa un parametro per il tempo di attesa
+
+  // Avvia l'allarme: il primo segnale SIGALRM scatta tra 1 secondo
+  alarm(1);
 
   // Impostiamo la matrice iniziale (se vuoi che la prima partita inizi con la prima riga)
   // Oppure la prendi ogni volta che parte davvero la partita, dipende da te

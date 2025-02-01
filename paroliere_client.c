@@ -158,7 +158,7 @@ int main(int argc, char *argv[])
     case 'R':
       printf("Registrazione dell'utente %s\n", token);
       send_message(sock, MSG_REGISTRA_UTENTE, token);
-      
+
       // Riceve la risposta dal server
       {
         char type;
@@ -166,9 +166,11 @@ int main(int argc, char *argv[])
         char data[1024];
         receive_message(sock, &type, &size, data);
 
-        if (type == MSG_OK)
+        if (type == MSG_REGISTRA_UTENTE || type == MSG_OK)
         {
-          printf("Registrazione avvenuta con successo\n");
+          // Ora il payload contiene il messaggio di conferma,
+          // la matrice e il tempo residuo.
+          printf("Risposta dal server:\n%s\n", data);
           is_registered = 1; // Imposta lo stato come registrato
         }
         else if (type == MSG_ERR)
