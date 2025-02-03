@@ -206,6 +206,11 @@ int main(int argc, char *argv[])
           {
             print_matrice(data);
           }
+          else if (type == MSG_TEMPO_ATTESA)
+          {
+            // Se il server è in pausa e invia il tempo di attesa residuo
+            printf("Partita in pausa. Tempo residuo di attesa: %s secondi\n", data);
+          }
           else if (type == MSG_ERR)
           {
             printf("Errore: %s\n", data);

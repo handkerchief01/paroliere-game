@@ -223,10 +223,18 @@ void *handle_client(void *client_socket)
       break;
 
     case MSG_MATRICE:
-      // Convertiamo la matrice in formato testuale
+      if (partitaInCorso == 1)
+      {
       response_type = MSG_MATRICE;
       matrice_to_string(&mat_attuale, response_data, sizeof(response_data));
       break;
+      }
+      else
+      {
+        response_type = MSG_TEMPO_ATTESA;
+        sprintf(response_data, "%d", tempo_residuo);
+        break;
+      }
 
     case MSG_TEMPO_ATTESA:
       response_type = MSG_TEMPO_ATTESA;
@@ -239,10 +247,7 @@ void *handle_client(void *client_socket)
       break;
 
     case MSG_PAROLA:
-      // Esempio: ipotizziamo `data` contenga "NOME\0PAROLA"
-      // Occorre separare il nome dalla parola.
-      // Oppure puoi decidere un protocollo diverso.
-      // Per ora ipotizziamo di doverlo fare manualmente:
+      if (partitaInCorso == 1){
       {
         char nome[50];
         char parola[50];
@@ -261,6 +266,14 @@ void *handle_client(void *client_socket)
       // Gestito direttamente, saltiamo il send_message sotto
       continue;
       break;
+      }
+      else
+      {
+        response_type = MSG_ERR;
+        strcpy(response_data, "Partita non ancora iniziata");
+        break;
+      }
+
 
     default:
       response_type = MSG_ERR;
