@@ -8,6 +8,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <pthread.h>
+#include <getopt.h>
 
 #include "matrice.h"
 #include "structs.h"
@@ -39,7 +40,7 @@ volatile sig_atomic_t tempo_residuo = 0;
 // Durate (in secondi)
 int TEMPO_PARTITA = 60; // Valore da riga di comando (o default)
 int TEMPO_PAUSA = 60;   // Sempre 60 secondi di pausa                                   // Tempo di partita (s)
-// --------------------------------------------
+
 
 // Funzione per registrare un utente nella lista
 int registra_utente(const char *nome)
@@ -209,8 +210,8 @@ void *handle_client(void *client_socket)
         else
         {
           sprintf(response_data,
-                  "Registrazione avvenuta con successo\n%s\nPartita pausa, tempo residuo: %d secondi",
-                  matrix_str, tempo_residuo);
+                  "Registrazione avvenuta con successo\nPartita pausa, tempo residuo: %d secondi",
+                  tempo_residuo);
         }
 
         response_type = MSG_REGISTRA_UTENTE;
@@ -366,58 +367,133 @@ int get_next_matrice(Matrice *dest)
   return 0;
 }
 
-// Funzione principale del server
 int main(int argc, char *argv[])
 {
+  // Verifica degli argomenti minimi (nome_server e porta_server)
   if (argc < 3)
   {
-    fprintf(stderr, "Uso: %s <IP> <PORTA> [file_matrice] [tempo_attesa] [tempo_partita]\n", argv[0]);
+    fprintf(stderr,
+            "Uso: %s <nome_server> <porta_server> [--matrici data_filename] [--durata durata_in_minuti] [--seed rnd_seed] [--diz dizionario]\n",
+            argv[0]);
     exit(EXIT_FAILURE);
   }
 
-  // Se c'è un file di matrici, lo leggiamo tutto
-  if (argc >= 4)
+  // Parametri obbligatori:
+  char *nome_server = argv[1];
+  char *porta_server = argv[2];
+
+  // Parametri opzionali: inizializziamo con i valori di default
+  char *matrici_filename = NULL;    // Se non specificato, genera matrici casuali
+  int durata_minuti = 3;            // Durata di default = 3 minuti
+  int rnd_seed = 0;                 // Se 0, non è stato specificato; altrimenti useremo il valore fornito
+  char *dizionario_filename = NULL; // Dizionario opzionale
+
+  // Utilizziamo getopt_long per analizzare gli argomenti opzionali
+  int option_index = 0;
+  int c;
+  static struct option long_options[] = {
+      {"matrici", required_argument, 0, 'm'},
+      {"durata", required_argument, 0, 'd'},
+      {"seed", required_argument, 0, 's'},
+      {"diz", required_argument, 0, 'z'},
+      {0, 0, 0, 0}};
+
+  /* Gli argomenti obbligatori sono in argv[1] e argv[2],
+     perciò getopt_long() inizierà ad analizzare argv a partire da argv[3]. */
+  while ((c = getopt_long(argc, argv, "m:d:s:z:", long_options, &option_index)) != -1)
   {
-    if (leggi_tutte_le_matrici(argv[3]) != 0)
+    switch (c)
     {
-      fprintf(stderr, "Errore nella lettura del file %s\n", argv[3]);
-      return 1;
+    case 'm':
+      matrici_filename = optarg;
+      break;
+    case 'd':
+      durata_minuti = atoi(optarg);
+      break;
+    case 's':
+      rnd_seed = atoi(optarg);
+      break;
+    case 'z':
+      dizionario_filename = optarg;
+      break;
+    default:
+      fprintf(stderr, "Opzione non riconosciuta\n");
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  // Per il seed: se non è stato specificato, usiamo il tempo corrente
+  if (rnd_seed == 0)
+  {
+    rnd_seed = (int)time(NULL);
+  }
+
+  // Stampa di debug dei parametri ottenuti
+  printf("Nome server: %s\n", nome_server);
+  printf("Porta server: %s\n", porta_server);
+  if (matrici_filename)
+    printf("File matrici: %s\n", matrici_filename);
+  else
+    printf("Generazione matrici casuale\n");
+  printf("Durata partita: %d minuti\n", durata_minuti);
+  printf("Seed: %d\n", rnd_seed);
+  if (dizionario_filename)
+    printf("File dizionario: %s\n", dizionario_filename);
+  else
+    printf("Nessun dizionario specificato\n");
+
+  TEMPO_PARTITA = durata_minuti * 60;
+  TEMPO_PAUSA = 60;
+
+  /* Se il file delle matrici è stato specificato, lo usiamo per caricare le matrici;
+     altrimenti, generiamo una matrice casuale.
+  */
+  if (matrici_filename != NULL)
+  {
+    if (leggi_tutte_le_matrici(matrici_filename) != 0)
+    {
+      fprintf(stderr, "Errore nella lettura del file matrici: %s\n", matrici_filename);
+      exit(EXIT_FAILURE);
     }
   }
   else
   {
+    // Genera matrice casuale
     genera_matrice_casuale(&mat_attuale);
     count_matrici = 1;
     array_matrici[0] = mat_attuale;
   }
 
-  // Eventuali parametri di tempo
-  if (argc >= 5)
-    TEMPO_PAUSA = atoi(argv[4]);
-  if (argc >= 6)
-    TEMPO_PARTITA = atoi(argv[5]);
+  /* Imposta lo stato iniziale del gioco.
+     Per esempio, il server parte in pausa (tempo di attesa).
+  */
+  partitaInCorso = 0;
+  tempo_residuo = TEMPO_PAUSA;
 
+  /* Installa il gestore del segnale SIGALRM usando signal().
+     Il gestore, alarm_handler(), gestirà il countdown e il cambio di stato.
+  */
   if (signal(SIGALRM, alarm_handler) == SIG_ERR)
   {
     perror("Errore nell'installazione del gestore SIGALRM");
     exit(EXIT_FAILURE);
   }
 
-  // Imposta lo stato iniziale: il server parte in pausa (attesa)
-  partitaInCorso = 0;
-  tempo_residuo = TEMPO_PAUSA; // oppure usa un parametro per il tempo di attesa
-
-  // Avvia l'allarme: il primo segnale SIGALRM scatta tra 1 secondo
+  /* Avvia l'allarme: il primo SIGALRM scatta tra 1 secondo.
+     Il gestore alarm_handler() verrà richiamato ogni secondo.
+  */
   alarm(1);
 
-  // Impostiamo la matrice iniziale (se vuoi che la prima partita inizi con la prima riga)
-  // Oppure la prendi ogni volta che parte davvero la partita, dipende da te
+  /* Imposta la matrice iniziale per la partita (se vuoi che la prima partita usi la prima matrice)
+     Si utilizza get_next_matrice() per ottenere la matrice successiva (in modo circolare)
+  */
   get_next_matrice(&mat_attuale);
-  
-  // Oppure nel tuo `handle_client` o dove fai partire una nuova partita,
-  // chiami get_next_matrice(&mat_attuale).
 
-  // Creazione socket
+  // Eventuale impostazione del seed per la generazione pseudocasuale
+  srand(rnd_seed);
+
+  // Se hai un file dizionario, potresti volerlo aprire/inizializzare qui (non mostrato in questo esempio)
+
   int server_fd;
   struct sockaddr_in address;
   socklen_t addrlen = sizeof(address);
@@ -428,12 +504,10 @@ int main(int argc, char *argv[])
     exit(EXIT_FAILURE);
   }
 
-  // Configuriamo indirizzo e porta
   address.sin_family = AF_INET;
-  address.sin_port = htons(atoi(argv[2]));
-  address.sin_addr.s_addr = inet_addr(argv[1]);
+  address.sin_port = htons(atoi(porta_server));
+  address.sin_addr.s_addr = inet_addr(nome_server);
 
-  // Bind
   if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0)
   {
     perror("bind failed");
@@ -441,7 +515,6 @@ int main(int argc, char *argv[])
     exit(EXIT_FAILURE);
   }
 
-  // Listen
   if (listen(server_fd, MAX_CLIENTS) < 0)
   {
     perror("listen failed");
@@ -449,9 +522,14 @@ int main(int argc, char *argv[])
     exit(EXIT_FAILURE);
   }
 
-  printf("Server in ascolto su %s:%s ...\n", argv[1], argv[2]);
+  printf("Server in ascolto su %s:%s ...\n", nome_server, porta_server);
 
-  // Loop per accettare i client
+  // Qui, eventualmente, potresti creare un thread per il broadcast (se implementato)
+  // Ad esempio:
+  // pthread_t b_thread;
+  // if (pthread_create(&b_thread, NULL, broadcaster_thread, NULL) != 0) { ... }
+
+  // Loop principale per accettare i client
   while (1)
   {
     int new_socket = accept(server_fd, (struct sockaddr *)&address, &addrlen);
@@ -460,20 +538,13 @@ int main(int argc, char *argv[])
       perror("accept failed");
       continue;
     }
-
     printf("Connessione accettata da un client.\n");
 
-    // Crea un thread per gestire il nuovo client
+    // Qui potresti aggiungere il nuovo socket alla lista dei client per il broadcast
+
     pthread_t thread_id;
     int *client_sock = malloc(sizeof(int));
     *client_sock = new_socket;
-
-    // Esempio: se vuoi che ogni client parta con la "prossima" matrice:
-    // get_next_matrice(&mat_attuale);
-    // ... e passi mat_attuale al thread in qualche modo
-    // (per ora potresti passare un puntatore globale, dipende dal design).
-    // Oppure la matrice si cambia solo a inizio partita, etc.
-
     if (pthread_create(&thread_id, NULL, handle_client, (void *)client_sock) != 0)
     {
       perror("pthread_create failed");
