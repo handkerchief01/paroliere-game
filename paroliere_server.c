@@ -28,9 +28,6 @@ Matrice array_matrici[MAX_MATRICI];                       // tutte le matrici le
 int count_matrici = 0;                                    // quante righe/matrici abbiamo letto
 int current_index = 0;                                    // indice della prossima matrice da usare
 
-int tempo_attesa = 30;                                    // Tempo di attesa (s)
-int tempo_partita = 60;
-
 // Stato della partita: 0 = pausa (tempo di attesa), 1 = partita in corso.
 volatile sig_atomic_t partitaInCorso = 0;
 
@@ -39,7 +36,7 @@ volatile sig_atomic_t tempo_residuo = 0;
 
 // Durate (in secondi)
 int TEMPO_PARTITA = 60; // Valore da riga di comando (o default)
-int TEMPO_PAUSA = 60;   // Sempre 60 secondi di pausa                                   // Tempo di partita (s)
+int TEMPO_PAUSA = 5;   // Sempre 60 secondi di pausa                                   // Tempo di partita (s)
 
 
 // Funzione per registrare un utente nella lista
@@ -83,6 +80,7 @@ int registra_utente(const char *nome)
   strncpy(nuovo_utente->nome, nome, sizeof(nuovo_utente->nome));
   nuovo_utente->nome[sizeof(nuovo_utente->nome) - 1] = '\0';
   nuovo_utente->punteggio = 0;
+  nuovo_utente->num_parole = 0;
   nuovo_utente->next = utenti_head;
   utenti_head = nuovo_utente;
 
@@ -100,6 +98,7 @@ int verifica_parola(const char *parola, const Matrice *mat)
 // Calcola il punteggio di una parola (stub semplificato: lunghezza parola)
 int calcola_punteggio(const char *parola)
 {
+  printf("Calcolo punteggio per parola");
   return (int)strlen(parola);
 }
 
@@ -156,20 +155,63 @@ void handle_parola(int client_socket, const char *nome, const char *parola)
   char response_data[1024];
   memset(response_data, 0, sizeof(response_data));
 
-  if (verifica_parola(parola, &mat_attuale))
+  // Controllo duplicato: cerco l'utente nella lista degli utenti registrati
+  int duplicato = 0;
+  Utente *u = NULL;
+  pthread_mutex_lock(&utenti_mutex);
+  for (u = utenti_head; u != NULL; u = u->next)
   {
-    int punteggio = calcola_punteggio(parola);
-    aggiorna_punteggio(nome, punteggio);
-
-    response_type = MSG_PUNTI_PAROLA;
-    sprintf(response_data, "Punteggio parola: %d", punteggio);
+    if (strcmp(u->nome, nome) == 0)
+    {
+      // Ho trovato l'utente, ora controllo se la parola è già presente
+      for (int i = 0; i < u->num_parole; i++)
+      {
+        if (strcmp(u->parole_usate[i], parola) == 0)
+        {
+          duplicato = 1;
+          break;
+        }
+      }
+      break;
+    }
   }
-  else
+  pthread_mutex_unlock(&utenti_mutex);
+
+  if (duplicato)
+  {
+    // Se la parola è già stata proposta, invio 0 punti
+    response_type = MSG_PUNTI_PAROLA;
+    snprintf(response_data, sizeof(response_data), "Punteggio parola: %d", 0);
+    send_message(client_socket, response_type, response_data);
+    return;
+  }
+
+  // Verifica correttezza della parola (controlla dizionario, presenza nella matrice, lunghezza, ecc.)
+  if (!verifica_parola(parola, &mat_attuale))
   {
     response_type = MSG_ERR;
     strcpy(response_data, "Parola non valida");
+    send_message(client_socket, response_type, response_data);
+    return;
   }
 
+  // Se la parola è corretta e non è duplicata:
+  int punteggio = calcola_punteggio(parola);
+  // Aggiorna il punteggio dell'utente
+  aggiorna_punteggio(nome, punteggio);
+
+  // Aggiungo la parola alla lista dell'utente
+  pthread_mutex_lock(&utenti_mutex);
+  if (u != NULL && u->num_parole < MAX_PAROLE)
+  {
+    strncpy(u->parole_usate[u->num_parole], parola, MAX_LEN_PAROLA - 1);
+    u->parole_usate[u->num_parole][MAX_LEN_PAROLA - 1] = '\0';
+    u->num_parole++;
+  }
+  pthread_mutex_unlock(&utenti_mutex);
+
+  response_type = MSG_PUNTI_PAROLA;
+  snprintf(response_data, sizeof(response_data), "Punteggio parola: %d", punteggio);
   send_message(client_socket, response_type, response_data);
 }
 
@@ -264,8 +306,6 @@ void *handle_client(void *client_socket)
         // Gestiamo la parola
         handle_parola(sock, nome, parola);
       }
-      // Gestito direttamente, saltiamo il send_message sotto
-      continue;
       break;
       }
       else
@@ -443,7 +483,6 @@ int main(int argc, char *argv[])
     printf("Nessun dizionario specificato\n");
 
   TEMPO_PARTITA = durata_minuti * 60;
-  TEMPO_PAUSA = 60;
 
   /* Se il file delle matrici è stato specificato, lo usiamo per caricare le matrici;
      altrimenti, generiamo una matrice casuale.
