@@ -89,10 +89,72 @@ int registra_utente(const char *nome)
   return 1;
 }
 
-// Funzione per verificare se la parola è valida nella matrice
+int dfs_parola(const Matrice *mat, int i, int j, const char *parola, int index, int visited[MATRIX_SIZE][MATRIX_SIZE])
+{
+  int len = strlen(parola);
+  if (index == len)
+    return 1; // Tutti i caratteri sono stati trovati
+
+  // Controlla i limiti della matrice
+  if (i < 0 || i >= MATRIX_SIZE || j < 0 || j >= MATRIX_SIZE)
+    return 0;
+  if (visited[i][j])
+    return 0;
+
+  char *cell = mat->matrice[i][j];
+  int cellLen = strlen(cell);
+
+  // Confronta, in modo case-insensitive, la parte della parola con il contenuto della cella
+  if (strncasecmp(parola + index, cell, cellLen) != 0)
+    return 0;
+
+  // Se la cella contiene "Qu", consideriamo l'avanzamento di 1 lettera, altrimenti cellLen
+  int advance = (strcasecmp(cell, "Qu") == 0) ? 1 : cellLen;
+
+  visited[i][j] = 1;
+  int found = 0;
+  for (int di = -1; di <= 1 && !found; di++)
+  {
+    for (int dj = -1; dj <= 1 && !found; dj++)
+    {
+      if (di == 0 && dj == 0)
+        continue;
+      if (dfs_parola(mat, i + di, j + dj, parola, index + advance, visited))
+        found = 1;
+    }
+  }
+  visited[i][j] = 0;
+  return found;
+}
+
+int parola_in_matrice(const Matrice *mat, const char *parola)
+{
+  int visited[MATRIX_SIZE][MATRIX_SIZE] = {0};
+  for (int i = 0; i < MATRIX_SIZE; i++)
+  {
+    for (int j = 0; j < MATRIX_SIZE; j++)
+    {
+      if (dfs_parola(mat, i, j, parola, 0, visited))
+        return 1;
+    }
+  }
+  return 0;
+}
+
 int verifica_parola(const char *parola, const Matrice *mat)
 {
-  // Per ora ritorna 1 (tutte valide)
+  // 2. Verifica se la parola può essere formata nella matrice
+  if (!parola_in_matrice(mat, parola)){
+    printf("Parola non presente nella matrice\n");
+    return 0;
+  }
+
+  // 3. Verifica se la parola è presente nel dizionario
+  if (!searchWord(dictionaryRoot, parola)){
+    printf("Parola non presente nel dizionario\n");
+    return 0;
+    }
+
   return 1;
 }
 

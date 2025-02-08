@@ -23,10 +23,10 @@ void insertWord(TrieNode *root, const char *word)
   TrieNode *current = root;
   for (int i = 0; word[i] != '\0'; i++)
   {
-    char c = toupper((unsigned char)word[i]);
-    if (c < 'A' || c > 'Z') // Salta caratteri non alfabetici
+    char c = tolower((unsigned char)word[i]);
+    if (c < 'a' || c > 'z') // Salta caratteri non alfabetici
       continue;
-    int index = c - 'A';
+    int index = c - 'a';
     if (current->children[index] == NULL)
       current->children[index] = createTrieNode();
     current = current->children[index];
@@ -40,8 +40,14 @@ int searchWord(TrieNode *root, const char *word)
   for (int i = 0; word[i] != '\0'; i++)
   {
     char c = toupper((unsigned char)word[i]);
-    if (c < 'A' || c > 'Z') // Salta caratteri non alfabetici
+    if (c < 'A' || c > 'Z')
       continue;
+    // Se trovi 'Q', controlla se il successivo è 'U'
+    if (c == 'Q' && toupper((unsigned char)word[i + 1]) == 'U')
+    {
+      // Incrementa l'indice per saltare la 'U'
+      i++;
+    }
     int index = c - 'A';
     if (current->children[index] == NULL)
       return 0;
