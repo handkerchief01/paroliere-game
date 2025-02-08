@@ -38,8 +38,7 @@ volatile sig_atomic_t tempo_residuo = 0;
 
 // Durate (in secondi)
 int TEMPO_PARTITA = 60; // Valore da riga di comando (o default)
-int TEMPO_PAUSA = 5;   // Sempre 60 secondi di pausa                                   // Tempo di partita (s)
-
+int TEMPO_PAUSA = 5;   // Sempre 60 secondi di pausa                                   
 
 // Funzione per registrare un utente nella lista
 int registra_utente(const char *nome)
@@ -495,9 +494,14 @@ int main(int argc, char *argv[])
   }
   else
   {
-    printf("Nessun dizionario specificato; il controllo sul dizionario verrà ignorato.\n");
+    dictionaryRoot = loadDictionary("dizionario.txt");
+    if (!dictionaryRoot)
+    {
+      fprintf(stderr, "Errore nel caricamento del dizionario.\n");
+      exit(EXIT_FAILURE);
+    }
   }
-  
+
   TEMPO_PARTITA = durata_minuti * 60;
 
   /* Se il file delle matrici è stato specificato, lo usiamo per caricare le matrici;

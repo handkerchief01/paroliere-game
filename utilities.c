@@ -82,3 +82,65 @@ int is_italian_alnum(char c)
 
   return 0;
 }
+
+//! per stampare la struttura correttamente. Da mettere nel main
+//! printTrie(dictionaryRoot, "", 1);
+// void printTrie(TrieNode *node, const char *prefix, int isLast)
+// {
+//   // Se il nodo corrente non è la radice, stampa il ramo
+//   if (prefix != NULL && strlen(prefix) > 0)
+//   {
+//     printf("%s", prefix);
+//     if (isLast)
+//       printf("└── ");
+//     else
+//       printf("├── ");
+//   }
+
+//   if (prefix == NULL || strlen(prefix) == 0)
+//     printf("ROOT\n");
+//   else
+//   {
+//     if (node->isEndOfWord)
+//       printf("(end)\n");
+//     else
+//       printf("\n");
+//   }
+
+//   int childCount = 0;
+//   for (int i = 0; i < ALPHABET_SIZE; i++)
+//   {
+//     if (node->children[i] != NULL)
+//       childCount++;
+//   }
+
+//   int printed = 0;
+//   char newPrefix[256];
+//   for (int i = 0; i < ALPHABET_SIZE; i++)
+//   {
+//     if (node->children[i] != NULL)
+//     {
+//       printed++;
+//       if (prefix != NULL && strlen(prefix) > 0)
+//         strcpy(newPrefix, prefix);
+//       else
+//         newPrefix[0] = '\0';
+
+//       if (isLast)
+//         strcat(newPrefix, "    ");
+//       else
+//         strcat(newPrefix, "│   ");
+
+//       char label[4];
+//       snprintf(label, sizeof(label), "%c", 'A' + i);
+
+//       char endStr[8] = "";
+//       if (node->children[i]->isEndOfWord)
+//         strcpy(endStr, " (end)");
+
+//       printf("%s%s%s\n", newPrefix, label, endStr);
+
+//       printTrie(node->children[i], newPrefix, (printed == childCount));
+//     }
+//   }
+// }
