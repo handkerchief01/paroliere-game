@@ -9,11 +9,12 @@
 #include <errno.h>
 #include <pthread.h>
 #include <getopt.h>
+#include <signal.h>
 
 #include "matrice.h"
 #include "structs.h"
 #include "utilities.h"
-#include <signal.h>
+#include "trie.h"
 
 // Numero massimo di client in coda di connessione
 #define MAX_CLIENTS 32
@@ -27,6 +28,7 @@ pthread_mutex_t utenti_mutex = PTHREAD_MUTEX_INITIALIZER; // Mutex per protegger
 Matrice array_matrici[MAX_MATRICI];                       // tutte le matrici lette
 int count_matrici = 0;                                    // quante righe/matrici abbiamo letto
 int current_index = 0;                                    // indice della prossima matrice da usare
+TrieNode *dictionaryRoot = NULL;
 
 // Stato della partita: 0 = pausa (tempo di attesa), 1 = partita in corso.
 volatile sig_atomic_t partitaInCorso = 0;
@@ -482,6 +484,20 @@ int main(int argc, char *argv[])
   else
     printf("Nessun dizionario specificato\n");
 
+  if (dizionario_filename != NULL)
+  {
+    dictionaryRoot = loadDictionary(dizionario_filename);
+    if (!dictionaryRoot)
+    {
+      fprintf(stderr, "Errore nel caricamento del dizionario.\n");
+      exit(EXIT_FAILURE);
+    }
+  }
+  else
+  {
+    printf("Nessun dizionario specificato; il controllo sul dizionario verrà ignorato.\n");
+  }
+  
   TEMPO_PARTITA = durata_minuti * 60;
 
   /* Se il file delle matrici è stato specificato, lo usiamo per caricare le matrici;
