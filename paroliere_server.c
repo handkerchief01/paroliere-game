@@ -475,6 +475,7 @@ int get_next_matrice(Matrice *dest)
 
 int main(int argc, char *argv[])
 {
+  signal(SIGPIPE, SIG_IGN);
   // Verifica degli argomenti minimi (nome_server e porta_server)
   if (argc < 3)
   {
