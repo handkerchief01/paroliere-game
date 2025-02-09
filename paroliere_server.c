@@ -9,11 +9,12 @@
 #include <errno.h>
 #include <pthread.h>
 #include <getopt.h>
+#include <signal.h>
 
 #include "matrice.h"
 #include "structs.h"
 #include "utilities.h"
-#include <signal.h>
+#include "trie.h"
 
 // Numero massimo di client in coda di connessione
 #define MAX_CLIENTS 32
@@ -27,9 +28,7 @@ pthread_mutex_t utenti_mutex = PTHREAD_MUTEX_INITIALIZER; // Mutex per protegger
 Matrice array_matrici[MAX_MATRICI];                       // tutte le matrici lette
 int count_matrici = 0;                                    // quante righe/matrici abbiamo letto
 int current_index = 0;                                    // indice della prossima matrice da usare
-
-int tempo_attesa = 30;                                    // Tempo di attesa (s)
-int tempo_partita = 60;
+TrieNode *dictionaryRoot = NULL;
 
 // Stato della partita: 0 = pausa (tempo di attesa), 1 = partita in corso.
 volatile sig_atomic_t partitaInCorso = 0;
@@ -39,8 +38,7 @@ volatile sig_atomic_t tempo_residuo = 0;
 
 // Durate (in secondi)
 int TEMPO_PARTITA = 60; // Valore da riga di comando (o default)
-int TEMPO_PAUSA = 60;   // Sempre 60 secondi di pausa                                   // Tempo di partita (s)
-
+int TEMPO_PAUSA = 5;   // Sempre 60 secondi di pausa                                   
 
 // Funzione per registrare un utente nella lista
 int registra_utente(const char *nome)
@@ -50,7 +48,7 @@ int registra_utente(const char *nome)
   pthread_mutex_lock(&utenti_mutex);
 
   // Verifichiamo la lunghezza minima/massima
-  if (strlen(nome) == 0 || strlen(nome) > 10)
+  if (strlen(nome) == 0 || strlen(nome) > 20)
   {
     pthread_mutex_unlock(&utenti_mutex);
     return 0; // Nome non valido
@@ -83,6 +81,7 @@ int registra_utente(const char *nome)
   strncpy(nuovo_utente->nome, nome, sizeof(nuovo_utente->nome));
   nuovo_utente->nome[sizeof(nuovo_utente->nome) - 1] = '\0';
   nuovo_utente->punteggio = 0;
+  nuovo_utente->num_parole = 0;
   nuovo_utente->next = utenti_head;
   utenti_head = nuovo_utente;
 
@@ -90,16 +89,79 @@ int registra_utente(const char *nome)
   return 1;
 }
 
-// Funzione per verificare se la parola è valida nella matrice
+int dfs_parola(const Matrice *mat, int i, int j, const char *parola, int index, int visited[MATRIX_SIZE][MATRIX_SIZE])
+{
+  int len = strlen(parola);
+  if (index == len)
+    return 1; // Tutti i caratteri sono stati trovati
+
+  // Controlla i limiti della matrice
+  if (i < 0 || i >= MATRIX_SIZE || j < 0 || j >= MATRIX_SIZE)
+    return 0;
+  if (visited[i][j])
+    return 0;
+
+  char *cell = mat->matrice[i][j];
+  int cellLen = strlen(cell);
+
+  // Confronta, in modo case-insensitive, la parte della parola con il contenuto della cella
+  if (strncasecmp(parola + index, cell, cellLen) != 0)
+    return 0;
+
+  // Se la cella contiene "Qu", consideriamo l'avanzamento di 1 lettera, altrimenti cellLen
+  int advance = (strcasecmp(cell, "Qu") == 0) ? 1 : cellLen;
+
+  visited[i][j] = 1;
+  int found = 0;
+  for (int di = -1; di <= 1 && !found; di++)
+  {
+    for (int dj = -1; dj <= 1 && !found; dj++)
+    {
+      if (di == 0 && dj == 0)
+        continue;
+      if (dfs_parola(mat, i + di, j + dj, parola, index + advance, visited))
+        found = 1;
+    }
+  }
+  visited[i][j] = 0;
+  return found;
+}
+
+int parola_in_matrice(const Matrice *mat, const char *parola)
+{
+  int visited[MATRIX_SIZE][MATRIX_SIZE] = {0};
+  for (int i = 0; i < MATRIX_SIZE; i++)
+  {
+    for (int j = 0; j < MATRIX_SIZE; j++)
+    {
+      if (dfs_parola(mat, i, j, parola, 0, visited))
+        return 1;
+    }
+  }
+  return 0;
+}
+
 int verifica_parola(const char *parola, const Matrice *mat)
 {
-  // Per ora ritorna 1 (tutte valide)
+  // 2. Verifica se la parola può essere formata nella matrice
+  if (!parola_in_matrice(mat, parola)){
+    printf("Parola non presente nella matrice\n");
+    return 0;
+  }
+
+  // 3. Verifica se la parola è presente nel dizionario
+  if (!searchWord(dictionaryRoot, parola)){
+    printf("Parola non presente nel dizionario\n");
+    return 0;
+    }
+
   return 1;
 }
 
 // Calcola il punteggio di una parola (stub semplificato: lunghezza parola)
 int calcola_punteggio(const char *parola)
 {
+  printf("Calcolo punteggio per parola");
   return (int)strlen(parola);
 }
 
@@ -156,20 +218,63 @@ void handle_parola(int client_socket, const char *nome, const char *parola)
   char response_data[1024];
   memset(response_data, 0, sizeof(response_data));
 
-  if (verifica_parola(parola, &mat_attuale))
+  // Controllo duplicato: cerco l'utente nella lista degli utenti registrati
+  int duplicato = 0;
+  Utente *u = NULL;
+  pthread_mutex_lock(&utenti_mutex);
+  for (u = utenti_head; u != NULL; u = u->next)
   {
-    int punteggio = calcola_punteggio(parola);
-    aggiorna_punteggio(nome, punteggio);
-
-    response_type = MSG_PUNTI_PAROLA;
-    sprintf(response_data, "Punteggio parola: %d", punteggio);
+    if (strcmp(u->nome, nome) == 0)
+    {
+      // Ho trovato l'utente, ora controllo se la parola è già presente
+      for (int i = 0; i < u->num_parole; i++)
+      {
+        if (strcmp(u->parole_usate[i], parola) == 0)
+        {
+          duplicato = 1;
+          break;
+        }
+      }
+      break;
+    }
   }
-  else
+  pthread_mutex_unlock(&utenti_mutex);
+
+  if (duplicato)
+  {
+    // Se la parola è già stata proposta, invio 0 punti
+    response_type = MSG_PUNTI_PAROLA;
+    snprintf(response_data, sizeof(response_data), "Parola già inserita, punteggio parola: %d", 0);
+    send_message(client_socket, response_type, response_data);
+    return;
+  }
+
+  // Verifica correttezza della parola (controlla dizionario, presenza nella matrice, lunghezza, ecc.)
+  if (!verifica_parola(parola, &mat_attuale))
   {
     response_type = MSG_ERR;
     strcpy(response_data, "Parola non valida");
+    send_message(client_socket, response_type, response_data);
+    return;
   }
 
+  // Se la parola è corretta e non è duplicata:
+  int punteggio = calcola_punteggio(parola);
+  // Aggiorna il punteggio dell'utente
+  aggiorna_punteggio(nome, punteggio);
+
+  // Aggiungo la parola alla lista dell'utente
+  pthread_mutex_lock(&utenti_mutex);
+  if (u != NULL && u->num_parole < MAX_PAROLE)
+  {
+    strncpy(u->parole_usate[u->num_parole], parola, MAX_LEN_PAROLA - 1);
+    u->parole_usate[u->num_parole][MAX_LEN_PAROLA - 1] = '\0';
+    u->num_parole++;
+  }
+  pthread_mutex_unlock(&utenti_mutex);
+
+  response_type = MSG_PUNTI_PAROLA;
+  snprintf(response_data, sizeof(response_data), "Punteggio parola: %d", punteggio);
   send_message(client_socket, response_type, response_data);
 }
 
@@ -248,33 +353,34 @@ void *handle_client(void *client_socket)
       break;
 
     case MSG_PAROLA:
-      if (partitaInCorso == 1){
+      if (partitaInCorso == 1)
       {
-        char nome[50];
-        char parola[50];
-        memset(nome, 0, sizeof(nome));
-        memset(parola, 0, sizeof(parola));
-
-        // Copio la prima stringa (nome)
-        strcpy(nome, data);
-        // La parola inizia subito dopo il '\0' del nome
-        const char *p = data + strlen(nome) + 1;
-        strcpy(parola, p);
-
-        // Gestiamo la parola
-        handle_parola(sock, nome, parola);
-      }
-      // Gestito direttamente, saltiamo il send_message sotto
-      continue;
-      break;
+        char nome[20], parola[32];
+        // Usa "|" come delimitatore
+        char *tokenNome = strtok(data, "|");
+        char *tokenParola = strtok(NULL, "|");
+        if (tokenNome != NULL && tokenParola != NULL)
+        {
+          strcpy(nome, tokenNome);
+          strcpy(parola, tokenParola);
+          printf("Nome: %s, Parola: %s\n", nome, parola);
+          handle_parola(sock, nome, parola);
+        }
+        else
+        {
+          // Se il formato non è corretto
+          response_type = MSG_ERR;
+          strcpy(response_data, "Formato del messaggio non valido");
+          send_message(sock, response_type, response_data);
+        }
+        continue;
       }
       else
       {
         response_type = MSG_ERR;
         strcpy(response_data, "Partita non ancora iniziata");
-        break;
       }
-
+      break;
 
     default:
       response_type = MSG_ERR;
@@ -442,8 +548,26 @@ int main(int argc, char *argv[])
   else
     printf("Nessun dizionario specificato\n");
 
+  if (dizionario_filename != NULL)
+  {
+    dictionaryRoot = loadDictionary(dizionario_filename);
+    if (!dictionaryRoot)
+    {
+      fprintf(stderr, "Errore nel caricamento del dizionario.\n");
+      exit(EXIT_FAILURE);
+    }
+  }
+  else
+  {
+    dictionaryRoot = loadDictionary("dizionario.txt");
+    if (!dictionaryRoot)
+    {
+      fprintf(stderr, "Errore nel caricamento del dizionario.\n");
+      exit(EXIT_FAILURE);
+    }
+  }
+
   TEMPO_PARTITA = durata_minuti * 60;
-  TEMPO_PAUSA = 60;
 
   /* Se il file delle matrici è stato specificato, lo usiamo per caricare le matrici;
      altrimenti, generiamo una matrice casuale.
