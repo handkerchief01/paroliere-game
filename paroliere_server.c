@@ -353,31 +353,18 @@ void *handle_client(void *client_socket)
       break;
 
     case MSG_PAROLA:
-      if (partitaInCorso == 1){
+      if (partitaInCorso == 1)
       {
-        char nome[50];
-        char parola[50];
-        memset(nome, 0, sizeof(nome));
-        memset(parola, 0, sizeof(parola));
-
-        // Copio la prima stringa (nome)
-        strcpy(nome, data);
-        // La parola inizia subito dopo il '\0' del nome
-        const char *p = data + strlen(nome) + 1;
-        strcpy(parola, p);
-
-        // Gestiamo la parola
-        handle_parola(sock, nome, parola);
-      }
-      break;
+        // Se il client ha inviato solo la parola, prendiamo il payload intero come parola
+        handle_parola(sock, "nomePredefinito", data);
+        continue;
       }
       else
       {
         response_type = MSG_ERR;
         strcpy(response_data, "Partita non ancora iniziata");
-        break;
       }
-
+      break;
 
     default:
       response_type = MSG_ERR;
