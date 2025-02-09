@@ -11,6 +11,8 @@
 #include "structs.h"
 #include "utilities.h"
 
+char my_name[20] = "";
+
 // Funzione per richiedere il tempo residuo al server
 int richiedi_tempo_residuo(int sock)
 {
@@ -156,6 +158,7 @@ int main(int argc, char *argv[])
       break;
 
     case 'R':
+    {
       printf("Registrazione dell'utente %s\n", token);
       send_message(sock, MSG_REGISTRA_UTENTE, token);
 
@@ -168,10 +171,11 @@ int main(int argc, char *argv[])
 
         if (type == MSG_REGISTRA_UTENTE || type == MSG_OK)
         {
-          // Ora il payload contiene il messaggio di conferma,
-          // la matrice e il tempo residuo.
           printf("Risposta dal server:\n%s\n", data);
           is_registered = 1; // Imposta lo stato come registrato
+          // Salva il nome digitato dall'utente
+          strncpy(my_name, token, sizeof(my_name) - 1);
+          my_name[sizeof(my_name) - 1] = '\0';
         }
         else if (type == MSG_ERR)
         {
@@ -183,6 +187,7 @@ int main(int argc, char *argv[])
         }
       }
       break;
+    }
 
     case 'M':
       if (!is_registered)
@@ -230,7 +235,14 @@ int main(int argc, char *argv[])
       }
       else
       {
-        send_message(sock, MSG_PAROLA, token);
+        // Costruisci il payload come: "my_name\0parola"
+        char payload[256];
+        // token contiene la parola inserita (assicurati che non sia NULL)
+        snprintf(payload, sizeof(payload), "%s|%s", my_name, token);
+
+        printf("Nome|Parola: %s\n", payload);
+
+        send_message(sock, MSG_PAROLA, payload);
 
         // Riceve la risposta dal server
         {
@@ -243,7 +255,7 @@ int main(int argc, char *argv[])
 
           if (type == MSG_PUNTI_PAROLA)
           {
-            printf("Punti parola: %s\n", data);
+            printf("%s\n", data);
           }
           else if (type == MSG_ERR)
           {

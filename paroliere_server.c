@@ -48,7 +48,7 @@ int registra_utente(const char *nome)
   pthread_mutex_lock(&utenti_mutex);
 
   // Verifichiamo la lunghezza minima/massima
-  if (strlen(nome) == 0 || strlen(nome) > 10)
+  if (strlen(nome) == 0 || strlen(nome) > 20)
   {
     pthread_mutex_unlock(&utenti_mutex);
     return 0; // Nome non valido
@@ -244,7 +244,7 @@ void handle_parola(int client_socket, const char *nome, const char *parola)
   {
     // Se la parola è già stata proposta, invio 0 punti
     response_type = MSG_PUNTI_PAROLA;
-    snprintf(response_data, sizeof(response_data), "Punteggio parola: %d", 0);
+    snprintf(response_data, sizeof(response_data), "Parola già inserita, punteggio parola: %d", 0);
     send_message(client_socket, response_type, response_data);
     return;
   }
@@ -355,8 +355,24 @@ void *handle_client(void *client_socket)
     case MSG_PAROLA:
       if (partitaInCorso == 1)
       {
-        // Se il client ha inviato solo la parola, prendiamo il payload intero come parola
-        handle_parola(sock, "nomePredefinito", data);
+        char nome[20], parola[32];
+        // Usa "|" come delimitatore
+        char *tokenNome = strtok(data, "|");
+        char *tokenParola = strtok(NULL, "|");
+        if (tokenNome != NULL && tokenParola != NULL)
+        {
+          strcpy(nome, tokenNome);
+          strcpy(parola, tokenParola);
+          printf("Nome: %s, Parola: %s\n", nome, parola);
+          handle_parola(sock, nome, parola);
+        }
+        else
+        {
+          // Se il formato non è corretto
+          response_type = MSG_ERR;
+          strcpy(response_data, "Formato del messaggio non valido");
+          send_message(sock, response_type, response_data);
+        }
         continue;
       }
       else
