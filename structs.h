@@ -14,6 +14,8 @@
 #define MSG_USCITA 'U'
 #define MSG_HELP 'H'
 #define MSG_CLASSIFICA 'C'
+#define MSG_LOGIN_UTENTE 'L'
+#define MSG_CANCELLA_UTENTE 'D'
 #define MAX_PAROLE 100
 #define MAX_LEN_PAROLA 32
 

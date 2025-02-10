@@ -60,6 +60,8 @@ void print_help()
   printf("Comandi disponibili:\n");
   printf("aiuto -> Mostra questo messaggio di aiuto\n");
   printf("registra utente <nome_utente> -> Registra un nuovo utente (sono ammessi solo caratteri alfanumerici dell'alfabeto italiano)\n");
+  printf("login_utente <nome_utente> -> Effettua il login con un utente esistente\n");
+  printf("cancella_utente <nome_utente> -> Cancella un utente registrato\n");
   printf("matrice -> Richiede la matrice corrente (devi essere registrato)\n");
   printf("p <parola> -> Invia una parola al server (devi essere registrato)\n");
   printf("fine -> Esci dal gioco\n");
@@ -166,6 +168,22 @@ int main(int argc, char *argv[])
         }
       }
     }
+    else if (strcmp(token, "login_utente") == 0)
+    {
+      token = strtok(NULL, " ");
+      if (token != NULL)
+      {
+        command_type = 'L';
+      }
+    }
+    else if (strcmp(token, "cancella_utente") == 0)
+    {
+      token = strtok(NULL, " ");
+      if (token != NULL)
+      {
+        command_type = 'D';
+      }
+    }
     else if (strcmp(token, "matrice") == 0)
     {
       command_type = 'M';
@@ -208,6 +226,67 @@ int main(int argc, char *argv[])
           // Salva il nome digitato dall'utente
           strncpy(my_name, token, sizeof(my_name) - 1);
           my_name[sizeof(my_name) - 1] = '\0';
+        }
+        else if (type == MSG_ERR)
+        {
+          printf("Errore: %s\n", data);
+        }
+        else
+        {
+          printf("Tipo di messaggio sconosciuto ricevuto: %c\n", type);
+        }
+      }
+      break;
+    }
+    case 'L':
+    { 
+      printf("Login dell'utente %s\n", token);
+      send_message(sock, MSG_LOGIN_UTENTE, token);
+
+      // Riceve la risposta dal server
+      {
+        char type;
+        int size;
+        char data[1024];
+        receive_message(sock, &type, &size, data);
+
+        if (type == MSG_LOGIN_UTENTE || type == MSG_OK)
+        {
+          printf("Risposta dal server:\n%s\n", data);
+          is_registered = 1; // Imposta lo stato come registrato
+          // Salva il nome digitato dall'utente
+          strncpy(my_name, token, sizeof(my_name) - 1);
+          my_name[sizeof(my_name) - 1] = '\0';
+        }
+        else if (type == MSG_ERR)
+        {
+          printf("Errore: %s\n", data);
+        }
+        else
+        {
+          printf("Tipo di messaggio sconosciuto ricevuto: %c\n", type);
+        }
+      }
+      break;
+    }
+
+    case 'D':
+    {
+      printf("Cancellazione dell'utente %s\n", token);
+      send_message(sock, MSG_CANCELLA_UTENTE, token);
+
+      // Riceve la risposta dal server
+      {
+        char type;
+        int size;
+        char data[1024];
+        receive_message(sock, &type, &size, data);
+
+        if (type == MSG_CANCELLA_UTENTE)
+        {
+          printf("Risposta dal server:\n%s\n", data);
+          is_registered = 0;
+          my_name[0] = '\0';
         }
         else if (type == MSG_ERR)
         {

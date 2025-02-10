@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdarg.h>
+#include <time.h>
 #include "structs.h"
 #include "macros.h"
 #include "utilities.h"
@@ -92,4 +94,35 @@ void receive_and_check(int sock, char *type, int *size, char *data)
     close(sock);
     exit(0);
   }
+}
+
+FILE *logFile = NULL;
+pthread_mutex_t logMutex = PTHREAD_MUTEX_INITIALIZER;
+
+void log_event(const char *format, ...)
+{
+  pthread_mutex_lock(&logMutex);
+  if (logFile == NULL)
+  {
+    logFile = fopen("log.txt", "a");
+    if (logFile == NULL)
+    {
+      perror("Errore apertura file log");
+      pthread_mutex_unlock(&logMutex);
+      return;
+    }
+  }
+  time_t now = time(NULL);
+  char timeStr[64];
+  strftime(timeStr, sizeof(timeStr), "[%Y-%m-%d %H:%M:%S]", localtime(&now));
+  fprintf(logFile, "%s ", timeStr);
+
+  va_list args;
+  va_start(args, format);
+  vfprintf(logFile, format, args);
+  va_end(args);
+
+  fprintf(logFile, "\n");
+  fflush(logFile);
+  pthread_mutex_unlock(&logMutex);
 }

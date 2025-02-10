@@ -85,6 +85,8 @@ void remove_client(int sock)
 
 void sigint_handler(int signum)
 {
+  const char *file = "log.txt";
+  remove(file);
   shutdownRequested = 1;
 }
 
@@ -135,6 +137,54 @@ int registra_utente(const char *nome)
 
   pthread_mutex_unlock(&utenti_mutex);
   return 1;
+}
+
+int login_utente(const char *nome)
+{
+  int found = 0;
+  pthread_mutex_lock(&utenti_mutex);
+  Utente *curr = utenti_head;
+  while (curr != NULL)
+  {
+    if (strcmp(curr->nome, nome) == 0)
+    {
+      found = 1;
+      break;
+    }
+    curr = curr->next;
+  }
+  pthread_mutex_unlock(&utenti_mutex);
+  return found;
+}
+
+int cancella_utente(const char *nome)
+{
+  int found = 0;
+  pthread_mutex_lock(&utenti_mutex);
+  Utente *curr = utenti_head;
+  Utente *prev = NULL;
+  while (curr != NULL)
+  {
+    if (strcmp(curr->nome, nome) == 0)
+    {
+      // Rimuovi curr dalla lista
+      if (prev == NULL)
+      {
+        utenti_head = curr->next;
+      }
+      else
+      {
+        prev->next = curr->next;
+      }
+      free(curr);
+      found = 1;
+      break;
+    }
+    prev = curr;
+    curr = curr->next;
+  }
+  pthread_mutex_unlock(&utenti_mutex);
+  return found;
 }
 
 int dfs_parola(const Matrice *mat, int i, int j, const char *parola, int index, int visited[MATRIX_SIZE][MATRIX_SIZE])
@@ -310,6 +360,8 @@ void handle_parola(int client_socket, const char *nome, const char *parola)
   int punteggio = calcola_punteggio(parola);
   // Aggiorna il punteggio dell'utente
   aggiorna_punteggio(nome, punteggio);
+  
+  log_event("Parola proposta da %s: %s, Punteggio assegnato: %d", nome, parola, punteggio);
 
   // Aggiungo la parola alla lista dell'utente
   pthread_mutex_lock(&utenti_mutex);
@@ -351,6 +403,7 @@ void *handle_client(void *client_socket)
     case MSG_REGISTRA_UTENTE:
       if (registra_utente(data))
       {
+        log_event("Registrazione utente: %s", data);
         char matrix_str[1024];
         matrice_to_string(&mat_attuale, matrix_str, sizeof(matrix_str));
         if (partitaInCorso == 1)
@@ -372,6 +425,30 @@ void *handle_client(void *client_socket)
       {
         response_type = MSG_ERR;
         strcpy(response_data, "Nome utente già esistente o non valido");
+      }
+      break;
+
+    case MSG_CANCELLA_UTENTE:
+      if (cancella_utente(data))
+      {
+        log_event("Cancellazione utente: %s", data);
+        send_message(sock, MSG_CANCELLA_UTENTE, "Cancellazione avvenuta con successo");
+      }
+      else
+      {
+        send_message(sock, MSG_ERR, "Utente non trovato o cancellazione fallita");
+      }
+      break;
+
+    case MSG_LOGIN_UTENTE:
+      if (login_utente(data))
+      {
+        log_event("Login utente: %s", data);
+        send_message(sock, MSG_LOGIN_UTENTE, "Login avvenuto con successo");
+      }
+      else
+      {
+        send_message(sock, MSG_ERR, "Utente non registrato");
       }
       break;
 
@@ -412,6 +489,7 @@ void *handle_client(void *client_socket)
           strcpy(parola, tokenParola);
           printf("Nome: %s, Parola: %s\n", nome, parola);
           handle_parola(sock, nome, parola);
+          // log_event("Parola proposta da %s: %s, Punteggio assegnato: %d", nome, parola, punteggio);
         }
         else
         {
