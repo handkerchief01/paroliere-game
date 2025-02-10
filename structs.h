@@ -10,6 +10,7 @@
 #define MSG_PAROLA 'W'
 #define MSG_PUNTI_FINALI 'F'
 #define MSG_PUNTI_PAROLA 'P'
+#define MSG_SERVER_SHUTDOWN 'B'
 #define MSG_USCITA 'U'
 #define MSG_HELP 'H'
 #define MSG_CLASSIFICA 'C'
@@ -25,3 +26,9 @@ typedef struct Utente
   int num_parole; // Numero di parole usate
   struct Utente *next; // Puntatore al prossimo utente nella lista
 } Utente;
+
+typedef struct ClientNode
+{
+  int sock;
+  struct ClientNode *next;
+} ClientNode;

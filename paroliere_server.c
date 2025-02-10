@@ -1,3 +1,4 @@
+#define _XOPEN_SOURCE 700 // perché sigaction fa parte di POSIX.1-2008
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -21,7 +22,13 @@
 #define MAX_MATRICI 100 // numero massimo di righe/matrici nel file
 
 // Variabili globali
+ClientNode *clientList = NULL;
+pthread_mutex_t clientListMutex = PTHREAD_MUTEX_INITIALIZER;
+volatile sig_atomic_t shutdownRequested = 0;
+
 Matrice mat_attuale;                                      // Matrice di gioco 4x4
+volatile sig_atomic_t updateMatrixFlag = 0;
+
 Utente *utenti_head = NULL;                               // Lista utenti collegati
 pthread_mutex_t utenti_mutex = PTHREAD_MUTEX_INITIALIZER; // Mutex per proteggere la lista
 
@@ -38,7 +45,48 @@ volatile sig_atomic_t tempo_residuo = 0;
 
 // Durate (in secondi)
 int TEMPO_PARTITA = 60; // Valore da riga di comando (o default)
-int TEMPO_PAUSA = 5;   // Sempre 60 secondi di pausa                                   
+int TEMPO_PAUSA = 5;   // Sempre 60 secondi di pausa
+
+void add_client(int sock)
+{
+  ClientNode *node = malloc(sizeof(ClientNode));
+  if (!node)
+  {
+    perror("Errore allocazione client node");
+    return;
+  }
+  node->sock = sock;
+  pthread_mutex_lock(&clientListMutex);
+  node->next = clientList;
+  clientList = node;
+  pthread_mutex_unlock(&clientListMutex);
+}
+
+void remove_client(int sock)
+{
+  pthread_mutex_lock(&clientListMutex);
+  ClientNode *curr = clientList, *prev = NULL;
+  while (curr != NULL)
+  {
+    if (curr->sock == sock)
+    {
+      if (prev == NULL)
+        clientList = curr->next;
+      else
+        prev->next = curr->next;
+      free(curr);
+      break;
+    }
+    prev = curr;
+    curr = curr->next;
+  }
+  pthread_mutex_unlock(&clientListMutex);
+}
+
+void sigint_handler(int signum)
+{
+  shutdownRequested = 1;
+}
 
 // Funzione per registrare un utente nella lista
 int registra_utente(const char *nome)
@@ -203,7 +251,7 @@ void alarm_handler(int signum)
       partitaInCorso = 1;
       tempo_residuo = TEMPO_PARTITA;
       // Per la nuova partita, aggiorniamo la matrice (per esempio, prendiamo la successiva)
-      get_next_matrice(&mat_attuale);
+      updateMatrixFlag = 1;
       write(STDOUT_FILENO, "Pausa terminata. La partita inizia.\n", 36);
     }
   }
@@ -287,7 +335,6 @@ void *handle_client(void *client_socket)
   char type;
   int size;
   char data[1024];
-  
 
   while (1)
   {
@@ -393,6 +440,7 @@ void *handle_client(void *client_socket)
   }
 
   close(sock);
+  remove_client(sock);
   return NULL;
 }
 
@@ -476,6 +524,15 @@ int get_next_matrice(Matrice *dest)
 int main(int argc, char *argv[])
 {
   signal(SIGPIPE, SIG_IGN);
+
+  struct sigaction sa_int;
+  memset(&sa_int, 0, sizeof(sa_int));
+  sa_int.sa_handler = sigint_handler;
+  if (sigaction(SIGINT, &sa_int, NULL) == -1)
+  {
+    perror("sigaction(SIGINT) error");
+    exit(EXIT_FAILURE);
+  }
   // Verifica degli argomenti minimi (nome_server e porta_server)
   if (argc < 3)
   {
@@ -595,29 +652,23 @@ int main(int argc, char *argv[])
   partitaInCorso = 0;
   tempo_residuo = TEMPO_PAUSA;
 
-  /* Installa il gestore del segnale SIGALRM usando signal().
-     Il gestore, alarm_handler(), gestirà il countdown e il cambio di stato.
-  */
-  if (signal(SIGALRM, alarm_handler) == SIG_ERR)
+  // Gestione tempo di gioco con alarm()
+  struct sigaction sa_alrm;
+  memset(&sa_alrm, 0, sizeof(sa_alrm));
+  sa_alrm.sa_handler = alarm_handler;
+  if (sigaction(SIGALRM, &sa_alrm, NULL) == -1)
   {
-    perror("Errore nell'installazione del gestore SIGALRM");
+    perror("sigaction(SIGALRM) error");
     exit(EXIT_FAILURE);
   }
-
-  /* Avvia l'allarme: il primo SIGALRM scatta tra 1 secondo.
-     Il gestore alarm_handler() verrà richiamato ogni secondo.
-  */
   alarm(1);
 
-  /* Imposta la matrice iniziale per la partita (se vuoi che la prima partita usi la prima matrice)
-     Si utilizza get_next_matrice() per ottenere la matrice successiva (in modo circolare)
+  /* Imposta la matrice iniziale per la partita
   */
   get_next_matrice(&mat_attuale);
 
   // Eventuale impostazione del seed per la generazione pseudocasuale
   srand(rnd_seed);
-
-  // Se hai un file dizionario, potresti volerlo aprire/inizializzare qui (non mostrato in questo esempio)
 
   int server_fd;
   struct sockaddr_in address;
@@ -649,23 +700,23 @@ int main(int argc, char *argv[])
 
   printf("Server in ascolto su %s:%s ...\n", nome_server, porta_server);
 
-  // Qui, eventualmente, potresti creare un thread per il broadcast (se implementato)
-  // Ad esempio:
-  // pthread_t b_thread;
-  // if (pthread_create(&b_thread, NULL, broadcaster_thread, NULL) != 0) { ... }
-
   // Loop principale per accettare i client
-  while (1)
+  while (!shutdownRequested)
   {
     int new_socket = accept(server_fd, (struct sockaddr *)&address, &addrlen);
     if (new_socket < 0)
     {
+      if (errno == EINTR)
+      {
+        // La chiamata è stata interrotta da un segnale (ad esempio SIGALRM o SIGINT)
+        continue;
+      }
       perror("accept failed");
       continue;
     }
     printf("Connessione accettata da un client.\n");
 
-    // Qui potresti aggiungere il nuovo socket alla lista dei client per il broadcast
+    add_client(new_socket);
 
     pthread_t thread_id;
     int *client_sock = malloc(sizeof(int));
@@ -675,9 +726,29 @@ int main(int argc, char *argv[])
       perror("pthread_create failed");
       close(new_socket);
       free(client_sock);
+      remove_client(new_socket);
+    }
+
+    if (updateMatrixFlag)
+    {
+      get_next_matrice(&mat_attuale);
+      updateMatrixFlag = 0;
     }
   }
 
+  pthread_mutex_lock(&clientListMutex);
+  ClientNode *curr = clientList;
+  while (curr != NULL)
+  {
+    send_message(curr->sock, MSG_SERVER_SHUTDOWN, "Server in chiusura");
+    curr = curr->next;
+  }
+  pthread_mutex_unlock(&clientListMutex);
+
+  sleep(1); // il tempo che il client riceva il messaggio di chiusura
+
+  // Chiudi il socket di ascolto
   close(server_fd);
+  printf("Server terminato.\n");
   return 0;
 }

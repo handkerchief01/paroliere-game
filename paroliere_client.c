@@ -8,11 +8,36 @@
 #include <sys/socket.h>
 #include "macros.h"
 #include <netdb.h>
+#include <pthread.h>
+#include <signal.h>
+
 #include "structs.h"
 #include "utilities.h"
 
 char my_name[20] = "";
 
+void *receiver_thread(void *arg)
+{
+  int sock = *(int *)arg;
+  char type;
+  int size;
+  char data[1024];
+
+  while (1)
+  {
+    receive_message(sock, &type, &size, data);
+    if (type == MSG_SERVER_SHUTDOWN)
+    {
+      printf("Il server sta per chiudersi. Terminazione del client.\n");
+      sleep(2);
+      exit(0);
+    }
+    printf("Messaggio ricevuto: Type=%c, Size=%d, Data=%s\n", type, size, data);
+  }
+  // Chiudi il socket prima di terminare il thread
+  close(sock);
+  pthread_exit(NULL);
+}
 // Funzione per richiedere il tempo residuo al server
 int richiedi_tempo_residuo(int sock)
 {
@@ -98,6 +123,13 @@ int main(int argc, char *argv[])
 
   // Mostra il menu iniziale
   print_help();
+
+  pthread_t recv_thread;
+  if (pthread_create(&recv_thread, NULL, receiver_thread, (void *)&sock) != 0)
+  {
+    perror("pthread_create (receiver) failed");
+    exit(EXIT_FAILURE);
+  } 
 
   char command[1024];
   printf("[PROMPT PAROLIERE]--> ");
