@@ -26,7 +26,15 @@ void *receiver_thread(void *arg)
 
   while (1)
   {
-    receive_message(sock, &type, &size, data);
+    int n = receive_message(sock, &type, &size, data);
+
+    if (n <= 0)
+    {
+      printf("Connessione chiusa per disconnessione o errore di lettura.\n");
+      exit(0);
+      break;
+    }
+
     switch (type)
     {
     case MSG_REGISTRA_UTENTE:

@@ -27,36 +27,53 @@ void send_message(int sock, char type, const char *data)
   }
 }
 
-void receive_message(int sock, char *type, int *size, char *data)
+int receive_message(int sock, char *type, int *size, char *data)
 {
   int ret;
 
-  // 1) Leggiamo la dimensione (int)
   SYSC(ret, read(sock, size, sizeof(int)), "Read error: size");
-  if (ret <= 0)
+  if (ret == 0)
   {
-    // Se ret=0, connessione chiusa; se <0, errore
-    // Potresti gestire qui la chiusura o eccezione
+    // Significa EOF (il client ha chiuso la connessione in modo ordinato)
+    return 0;
   }
+  else if (ret == -2)
+  {
+    // Significa EAGAIN/EWOULDBLOCK => timeout
+    errno = EAGAIN;
+    return -1; // Oppure un altro codice a tua scelta
+  }
+  // Se ret > 0, la lettura è andata avanti.
 
   // 2) Leggiamo il tipo (char)
   SYSC(ret, read(sock, type, sizeof(char)), "Read error: type");
-  if (ret <= 0)
+  if (ret == 0)
+    return 0;
+  else if (ret == -2)
   {
-    // gestione errore/chiusura
+    errno = EAGAIN;
+    return -1;
   }
 
-  // 3) Leggiamo il payload (se size > 0)
+  // 3) Leggiamo il payload
   if (*size > 0)
   {
     SYSC(ret, read(sock, data, *size), "Read error: payload");
-    data[*size] = '\0'; // terminatore di stringa
+    if (ret == 0)
+      return 0;
+    else if (ret == -2)
+    {
+      errno = EAGAIN;
+      return -1;
+    }
+    data[*size] = '\0';
   }
   else
   {
-    // payload vuoto
     data[0] = '\0';
   }
+
+  return 1; // Tutto ok
 }
 
 int is_italian_alnum(char c)

@@ -11,6 +11,7 @@
 #include <pthread.h>
 #include <getopt.h>
 #include <signal.h>
+#include <sys/time.h>
 
 #include "matrice.h"
 #include "structs.h"
@@ -46,6 +47,9 @@ volatile sig_atomic_t tempo_residuo = 0;
 // Durate (in secondi)
 int TEMPO_PARTITA = 60; // Valore da riga di comando (o default)
 int TEMPO_PAUSA = 5;   // Sempre 60 secondi di pausa
+
+// Variabile globale per memorizzare i minuti dopo cui disconnettere
+static int DISCONNECT_AFTER = 0;
 
 void add_client(int sock)
 {
@@ -384,6 +388,14 @@ void *handle_client(void *client_socket)
   int sock = *(int *)client_socket;
   free(client_socket);
 
+  if (DISCONNECT_AFTER > 0)
+  {
+    struct timeval tv;
+    tv.tv_sec = DISCONNECT_AFTER * 60; // minuti -> secondi
+    tv.tv_usec = 0;
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof(tv));
+  }
+  
   char type;
   int size;
   char data[1024];
@@ -391,7 +403,30 @@ void *handle_client(void *client_socket)
   while (1)
   {
     // Leggiamo un messaggio dal client
-    receive_message(sock, &type, &size, data);
+    int n = receive_message(sock, &type, &size, data);
+    if (n == 0)
+    {
+      // EOF => client ha chiuso
+      printf("Client disconnesso (sock=%d)\n", sock);
+      close(sock);
+      remove_client(sock);
+      return NULL;
+    }
+    else if (n < 0)
+    {
+      // Errore => controlliamo se è EAGAIN
+      if (errno == EAGAIN)
+      {
+        printf("Client inattivo da troppo tempo. Espulsione (sock=%d).\n", sock);
+      }
+      else
+      {
+        perror("receive_message() fallita");
+      }
+      close(sock);
+      remove_client(sock);
+      return NULL;
+    }
 
     // Preparo la risposta
     char response_type = MSG_OK;
@@ -637,6 +672,7 @@ int main(int argc, char *argv[])
       {"durata", required_argument, 0, 'd'},
       {"seed", required_argument, 0, 's'},
       {"diz", required_argument, 0, 'z'},
+      {"disconnetti-dopo", required_argument, 0, 'x'},
       {0, 0, 0, 0}};
 
   /* Gli argomenti obbligatori sono in argv[1] e argv[2],
@@ -656,6 +692,10 @@ int main(int argc, char *argv[])
       break;
     case 'z':
       dizionario_filename = optarg;
+      break;
+    case 'x':
+      DISCONNECT_AFTER = atoi(optarg);
+      printf("Timeout di inattivita' impostato a %d minuti\n", DISCONNECT_AFTER);
       break;
     default:
       fprintf(stderr, "Opzione non riconosciuta\n");
