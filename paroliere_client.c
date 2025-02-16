@@ -15,6 +15,7 @@
 #include "utilities.h"
 
 char my_name[20] = "";
+int is_registered = 0;
 
 void *receiver_thread(void *arg)
 {
@@ -26,17 +27,59 @@ void *receiver_thread(void *arg)
   while (1)
   {
     receive_message(sock, &type, &size, data);
-    if (type == MSG_SERVER_SHUTDOWN)
+    switch (type)
     {
+    case MSG_REGISTRA_UTENTE:
+      printf("Risposta dal server:\n%s\n", data);
+      is_registered = 1; // Imposta lo stato come registrato
+      my_name[sizeof(my_name) - 1] = '\0';
+      break;
+
+    case MSG_LOGIN_UTENTE:
+      printf("Risposta dal server:\n%s\n", data);
+      is_registered = 1; // Imposta lo stato come registrato
+      my_name[sizeof(my_name) - 1] = '\0';
+      break;
+
+    case MSG_CANCELLA_UTENTE:
+      printf("Risposta dal server:\n%s\n", data);
+      is_registered = 0;
+      my_name[0] = '\0';
+      break;
+
+    case MSG_MATRICE:
+      print_matrice(data);
+      break;
+
+    case MSG_TEMPO_ATTESA:
+      // Se il server è in pausa e invia il tempo di attesa residuo
+      printf("Partita in pausa. Tempo residuo di attesa: %s secondi\n", data);
+      break;
+
+    case MSG_PUNTI_PAROLA:
+      printf("%s\n", data);
+      break;
+
+    case MSG_ERR:
+      printf("Errore: %s\n", data);
+      break;
+
+    case MSG_OK:
+      printf("Operazione completata con successo\n");
+      break;
+
+    case MSG_SERVER_SHUTDOWN:
       printf("Il server sta per chiudersi. Terminazione del client.\n");
       sleep(2);
       exit(0);
+      break;
     }
-    printf("Messaggio ricevuto: Type=%c, Size=%d, Data=%s\n", type, size, data);
   }
+  
   // Chiudi il socket prima di terminare il thread
   close(sock);
   pthread_exit(NULL);
+
 }
 // Funzione per richiedere il tempo residuo al server
 int richiedi_tempo_residuo(int sock)
@@ -86,7 +129,6 @@ int main(int argc, char *argv[])
   char *server_name = argv[1];
   int port = atoi(argv[2]); // Ottiene la porta del server dalla riga di comando
   struct addrinfo hints, *res, *p;
-  int is_registered = 0; // Variabile per tracciare se l'utente è registrato
 
   // Crea il socket del client
   if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
@@ -210,93 +252,96 @@ int main(int argc, char *argv[])
     case 'R':
     {
       printf("Registrazione dell'utente %s\n", token);
+      strncpy(my_name, token, sizeof(my_name) - 1);
       send_message(sock, MSG_REGISTRA_UTENTE, token);
 
-      // Riceve la risposta dal server
-      {
-        char type;
-        int size;
-        char data[1024];
-        receive_message(sock, &type, &size, data);
+      // // Riceve la risposta dal server
+      // {
+      //   char type;
+      //   int size;
+      //   char data[1024];
+      //   receive_message(sock, &type, &size, data);
 
-        if (type == MSG_REGISTRA_UTENTE || type == MSG_OK)
-        {
-          printf("Risposta dal server:\n%s\n", data);
-          is_registered = 1; // Imposta lo stato come registrato
-          // Salva il nome digitato dall'utente
-          strncpy(my_name, token, sizeof(my_name) - 1);
-          my_name[sizeof(my_name) - 1] = '\0';
-        }
-        else if (type == MSG_ERR)
-        {
-          printf("Errore: %s\n", data);
-        }
-        else
-        {
-          printf("Tipo di messaggio sconosciuto ricevuto: %c\n", type);
-        }
-      }
+      //   if (type == MSG_REGISTRA_UTENTE || type == MSG_OK)
+      //   {
+      //     printf("Risposta dal server:\n%s\n", data);
+      //     is_registered = 1; // Imposta lo stato come registrato
+      //     // Salva il nome digitato dall'utente
+      //     strncpy(my_name, token, sizeof(my_name) - 1);
+      //     my_name[sizeof(my_name) - 1] = '\0';
+      //   }
+      //   else if (type == MSG_ERR)
+      //   {
+      //     printf("Errore: %s\n", data);
+      //   }
+      //   else
+      //   {
+      //     printf("Tipo di messaggio sconosciuto ricevuto: %c\n", type);
+      //   }
+      // }
       break;
     }
     case 'L':
     { 
       printf("Login dell'utente %s\n", token);
+      strncpy(my_name, token, sizeof(my_name) - 1);
       send_message(sock, MSG_LOGIN_UTENTE, token);
 
       // Riceve la risposta dal server
-      {
-        char type;
-        int size;
-        char data[1024];
-        receive_message(sock, &type, &size, data);
+      // {
+      //   char type;
+      //   int size;
+      //   char data[1024];
+      //   receive_message(sock, &type, &size, data);
 
-        if (type == MSG_LOGIN_UTENTE || type == MSG_OK)
-        {
-          printf("Risposta dal server:\n%s\n", data);
-          is_registered = 1; // Imposta lo stato come registrato
-          // Salva il nome digitato dall'utente
-          strncpy(my_name, token, sizeof(my_name) - 1);
-          my_name[sizeof(my_name) - 1] = '\0';
-        }
-        else if (type == MSG_ERR)
-        {
-          printf("Errore: %s\n", data);
-        }
-        else
-        {
-          printf("Tipo di messaggio sconosciuto ricevuto: %c\n", type);
-        }
-      }
+      //   if (type == MSG_LOGIN_UTENTE || type == MSG_OK)
+      //   {
+      //     printf("Risposta dal server:\n%s\n", data);
+      //     is_registered = 1; // Imposta lo stato come registrato
+      //     // Salva il nome digitato dall'utente
+      //     strncpy(my_name, token, sizeof(my_name) - 1);
+      //     my_name[sizeof(my_name) - 1] = '\0';
+      //   }
+      //   else if (type == MSG_ERR)
+      //   {
+      //     printf("Errore: %s\n", data);
+      //   }
+      //   else
+      //   {
+      //     printf("Tipo di messaggio sconosciuto ricevuto: %c\n", type);
+      //   }
+      // }
       break;
     }
 
     case 'D':
     {
       printf("Cancellazione dell'utente %s\n", token);
+      my_name[0] = '\0';
       send_message(sock, MSG_CANCELLA_UTENTE, token);
 
       // Riceve la risposta dal server
-      {
-        char type;
-        int size;
-        char data[1024];
-        receive_message(sock, &type, &size, data);
+      // {
+      //   char type;
+      //   int size;
+      //   char data[1024];
+      //   receive_message(sock, &type, &size, data);
 
-        if (type == MSG_CANCELLA_UTENTE)
-        {
-          printf("Risposta dal server:\n%s\n", data);
-          is_registered = 0;
-          my_name[0] = '\0';
-        }
-        else if (type == MSG_ERR)
-        {
-          printf("Errore: %s\n", data);
-        }
-        else
-        {
-          printf("Tipo di messaggio sconosciuto ricevuto: %c\n", type);
-        }
-      }
+      //   if (type == MSG_CANCELLA_UTENTE)
+      //   {
+      //     printf("Risposta dal server:\n%s\n", data);
+      //     is_registered = 0;
+      //     my_name[0] = '\0';
+      //   }
+      //   else if (type == MSG_ERR)
+      //   {
+      //     printf("Errore: %s\n", data);
+      //   }
+      //   else
+      //   {
+      //     printf("Tipo di messaggio sconosciuto ricevuto: %c\n", type);
+      //   }
+      // }
       break;
     }
 
@@ -310,34 +355,35 @@ int main(int argc, char *argv[])
         send_message(sock, MSG_MATRICE, "");
 
         // Riceve la risposta dal server
-        {
-          char type;
-          int size;
-          char data[1024];
-          receive_message(sock, &type, &size, data);
+      //   {
+      //     char type;
+      //     int size;
+      //     char data[1024];
+      //     receive_message(sock, &type, &size, data);
 
-          printf("Ricevuto dal server: Type=%c, Length=%u, Data=%s\n", type, size, data);
+      //     printf("Ricevuto dal server: Type=%c, Length=%u, Data=%s\n", type, size, data);
 
-          if (type == MSG_MATRICE)
-          {
-            print_matrice(data);
-          }
-          else if (type == MSG_TEMPO_ATTESA)
-          {
-            // Se il server è in pausa e invia il tempo di attesa residuo
-            printf("Partita in pausa. Tempo residuo di attesa: %s secondi\n", data);
-          }
-          else if (type == MSG_ERR)
-          {
-            printf("Errore: %s\n", data);
-          }
-          else
-          {
-            printf("Tipo di messaggio sconosciuto ricevuto: %c\n", type);
-          }
-        }
-      }
+      //     if (type == MSG_MATRICE)
+      //     {
+      //       print_matrice(data);
+      //     }
+      //     else if (type == MSG_TEMPO_ATTESA)
+      //     {
+      //       // Se il server è in pausa e invia il tempo di attesa residuo
+      //       printf("Partita in pausa. Tempo residuo di attesa: %s secondi\n", data);
+      //     }
+      //     else if (type == MSG_ERR)
+      //     {
+      //       printf("Errore: %s\n", data);
+      //     }
+      //     else
+      //     {
+      //       printf("Tipo di messaggio sconosciuto ricevuto: %c\n", type);
+      //     }
+      //   }
+      // }
       break;
+      }
 
     case 'W':
       if (!is_registered)
@@ -356,27 +402,27 @@ int main(int argc, char *argv[])
         send_message(sock, MSG_PAROLA, payload);
 
         // Riceve la risposta dal server
-        {
-          char type;
-          int size;
-          char data[1024];
-          receive_message(sock, &type, &size, data);
+        // {
+        //   char type;
+        //   int size;
+        //   char data[1024];
+        //   receive_message(sock, &type, &size, data);
 
-          printf("Ricevuto dal server: Type=%c, Length=%u, Data=%s\n", type, size, data);
+        //   printf("Ricevuto dal server: Type=%c, Length=%u, Data=%s\n", type, size, data);
 
-          if (type == MSG_PUNTI_PAROLA)
-          {
-            printf("%s\n", data);
-          }
-          else if (type == MSG_ERR)
-          {
-            printf("Errore: %s\n", data);
-          }
-          else
-          {
-            printf("Tipo di messaggio sconosciuto ricevuto: %c\n", type);
-          }
-        }
+        //   if (type == MSG_PUNTI_PAROLA)
+        //   {
+        //     printf("%s\n", data);
+        //   }
+        //   else if (type == MSG_ERR)
+        //   {
+        //     printf("Errore: %s\n", data);
+        //   }
+        //   else
+        //   {
+        //     printf("Tipo di messaggio sconosciuto ricevuto: %c\n", type);
+        //   }
+        // }
       }
       break;
 

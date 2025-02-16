@@ -489,7 +489,6 @@ void *handle_client(void *client_socket)
           strcpy(parola, tokenParola);
           printf("Nome: %s, Parola: %s\n", nome, parola);
           handle_parola(sock, nome, parola);
-          // log_event("Parola proposta da %s: %s, Punteggio assegnato: %d", nome, parola, punteggio);
         }
         else
         {
