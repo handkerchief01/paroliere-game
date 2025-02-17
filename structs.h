@@ -18,6 +18,7 @@
 #define MSG_CANCELLA_UTENTE 'D'
 #define MSG_POST_BACHECA 'H'
 #define MSG_SHOW_BACHECA 'S'
+#define MSG_PUNTI_FINALI 'F'
 #define MAX_PAROLE 100
 #define MAX_LEN_PAROLA 32
 #define MAX_MSG_LEN 128

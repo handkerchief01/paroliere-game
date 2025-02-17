@@ -56,6 +56,8 @@ static int bacheca_count = 0; // quanti messaggi attualmente in bacheca (<= 8)
 static int bacheca_index = 0; // prossima posizione di scrittura (indice circolare)
 pthread_mutex_t bacheca_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+volatile sig_atomic_t partitaTerminataFlag = 0; // Indica che la partita è appena terminata, mi serve per lo scorer
+
 void add_client(int sock)
 {
   ClientNode *node = malloc(sizeof(ClientNode));
@@ -380,6 +382,110 @@ int show_bacheca(char *out, size_t out_size)
   return (int)used;
 }
 
+// Funzione di confronto per qsort
+int cmp_utente_punteggio_desc(const void *a, const void *b)
+{
+  Utente *ua = *(Utente **)a;
+  Utente *ub = *(Utente **)b;
+  return (ub->punteggio - ua->punteggio);
+  // se ub > ua => positivo => ub prima di ua => ordinamento decrescente
+}
+
+// Costruisce un CSV "nome,punteggio,nome,punteggio,..." in out
+void build_classifica_csv(char *out, size_t out_size)
+{
+  pthread_mutex_lock(&utenti_mutex);
+
+  // Conta quanti utenti
+  int count = 0;
+  for (Utente *u = utenti_head; u != NULL; u = u->next)
+  {
+    count++;
+  }
+  if (count == 0)
+  {
+    pthread_mutex_unlock(&utenti_mutex);
+    // Nessun utente => CSV vuoto
+    out[0] = '\0';
+    return;
+  }
+
+  // Alloca array di puntatori
+  Utente **array = malloc(count * sizeof(Utente *));
+  if (!array)
+  {
+    pthread_mutex_unlock(&utenti_mutex);
+    out[0] = '\0';
+    return;
+  }
+  int i = 0;
+  for (Utente *u = utenti_head; u != NULL; u = u->next)
+  {
+    array[i++] = u;
+  }
+
+  // Sblocchiamo il mutex prima dell'ordinamento
+  pthread_mutex_unlock(&utenti_mutex);
+
+  // Ordina in base al punteggio decrescente
+  qsort(array, count, sizeof(Utente *), cmp_utente_punteggio_desc);
+
+  // Costruiamo lo stile multi-riga
+  // Prima riga di intestazione
+  size_t used = 0;
+  int written = snprintf(out, out_size,
+                         "\"Utente\",\"Punteggio\"\n");
+  if (written < 0)
+  {
+    free(array);
+    out[0] = '\0';
+    return;
+  }
+  if ((size_t)written >= out_size)
+  {
+    // overflow
+    free(array);
+    out[0] = '\0';
+    return;
+  }
+  used = written;
+
+  // Ora ogni utente su una riga: "nome","punteggio"
+  for (int k = 0; k < count; k++)
+  {
+    // Se il nome può contenere virgole o virgolette, dovresti "escapare" le virgolette
+    // Per brevità, assumiamo che i nomi non contengano doppi apici.
+    // Se contengono virgole, non è un problema, perché è racchiuso in doppi apici.
+    written = snprintf(out + used, out_size - used,
+                       "\"%s\",%d\n",
+                       array[k]->nome,
+                       array[k]->punteggio);
+    if (written < 0)
+    {
+      break;
+    }
+    if ((size_t)written >= (out_size - used))
+    {
+      // overflow
+      break;
+    }
+    used += written;
+  }
+
+  if (count > 0)
+  { 
+    written = snprintf(out + used, out_size - used,
+                       "\"Vincitore\",\"%s\"\n",
+                       array[0]->nome);
+    if (written > 0 && (size_t)written < (out_size - used))
+    {
+      used += written;
+    }
+  }
+
+  free(array);
+}
+
 void alarm_handler(int signum)
 {
   // Decrementa il tempo residuo
@@ -392,6 +498,7 @@ void alarm_handler(int signum)
     {
       // Se eravamo in partita, la partita è terminata: passiamo alla pausa
       partitaInCorso = 0;
+      partitaTerminataFlag = 1;
       tempo_residuo = TEMPO_PAUSA;
       write(STDOUT_FILENO, "Partita terminata. Inizia la pausa.\n", 36);
     }
@@ -476,6 +583,39 @@ void handle_parola(int client_socket, const char *nome, const char *parola)
   response_type = MSG_PUNTI_PAROLA;
   snprintf(response_data, sizeof(response_data), "Punteggio parola: %d", punteggio);
   send_message(client_socket, response_type, response_data);
+}
+
+void *controller_thread(void *arg)
+{
+  while (!shutdownRequested)
+  {
+    // Aspetta che partitaTerminataFlag diventi 1
+    // (puoi usare un pthread_cond, oppure un semplice "while" con piccolo sleep)
+    while (!partitaTerminataFlag && !shutdownRequested)
+    {
+      sleep(1);
+    }
+    if (shutdownRequested)
+      break;
+
+    // Se siamo qui, la partita è finita
+    partitaTerminataFlag = 0;
+
+    // Calcola classifica
+    char scoreboard[1024];
+    build_classifica_csv(scoreboard, sizeof(scoreboard));
+
+    // Invia a tutti
+    pthread_mutex_lock(&clientListMutex);
+    ClientNode *c = clientList;
+    while (c != NULL)
+    {
+      send_message(c->sock, MSG_PUNTI_FINALI, scoreboard);
+      c = c->next;
+    }
+    pthread_mutex_unlock(&clientListMutex);
+  }
+  return NULL;
 }
 
 // Thread che gestisce un client specifico
@@ -665,8 +805,6 @@ void *handle_client(void *client_socket)
 
     case MSG_SHOW_BACHECA:
     {
-      printf("[DEBUG] Entrato in case MSG_SHOW_BACHECA\n");
-
       char buffer[2048];
       int n = show_bacheca(buffer, sizeof(buffer));
 
@@ -957,6 +1095,8 @@ int main(int argc, char *argv[])
 
   printf("Server in ascolto su %s:%s ...\n", nome_server, porta_server);
 
+  pthread_t ctrl_tid;
+  pthread_create(&ctrl_tid, NULL, controller_thread, NULL);
   // Loop principale per accettare i client
   while (!shutdownRequested)
   {

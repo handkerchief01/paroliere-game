@@ -74,6 +74,10 @@ void *receiver_thread(void *arg)
       // (oppure parse con strtok)
       break;
 
+    case MSG_PUNTI_FINALI:
+      printf("Classifica finale: %s\n", data);
+      break;
+
     case MSG_ERR:
       printf("Errore: %s\n", data);
       break;
@@ -345,11 +349,9 @@ int main(int argc, char *argv[])
       }
       else
       {
-        printf("[DEBUG] testo della bacheca = '%s'\n", token);
-
         char payload[256];
         snprintf(payload, sizeof(payload), "%s|%s", my_name, token);
-        printf("[DEBUG] Invio payload: '%s'\n", payload);
+        printf("Invio: '%s'\n", payload);
         send_message(sock, MSG_POST_BACHECA, payload);
       }
       break;
