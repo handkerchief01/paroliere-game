@@ -68,6 +68,12 @@ void *receiver_thread(void *arg)
       printf("%s\n", data);
       break;
 
+    case MSG_SHOW_BACHECA:
+      printf("BACHECA:\n");
+      printf("%s\n", data); // ad esempio: stampa la stringa raw
+      // (oppure parse con strtok)
+      break;
+
     case MSG_ERR:
       printf("Errore: %s\n", data);
       break;
@@ -115,6 +121,8 @@ void print_help()
   printf("cancella_utente <nome_utente> -> Cancella un utente registrato\n");
   printf("matrice -> Richiede la matrice corrente (devi essere registrato)\n");
   printf("p <parola> -> Invia una parola al server (devi essere registrato)\n");
+  printf("msg <testo_messaggio> -> Invia un messaggio sulla bacheca\n");
+  printf("show-msg -> Mostra i messaggi sulla bacheca\n");
   printf("fine -> Esci dal gioco\n");
 }
 
@@ -246,6 +254,24 @@ int main(int argc, char *argv[])
         command_type = 'W';
       }
     }
+    else if (strcmp(token, "msg") == 0)
+    {
+      token = strtok(NULL, "");
+      if (token != NULL && strlen(token) > 0)
+      {
+        while (*token == ' ')
+          token++;
+        command_type = 'B';
+      }
+      else
+      {
+        printf("Uso corretto: msg <testo>\n");
+      }
+    }
+    else if (strcmp(token, "show-msg") == 0)
+    {
+      command_type = 'S';
+    }
     else if (strcmp(token, "fine") == 0)
     {
       command_type = 'Q';
@@ -263,30 +289,6 @@ int main(int argc, char *argv[])
       strncpy(my_name, token, sizeof(my_name) - 1);
       send_message(sock, MSG_REGISTRA_UTENTE, token);
 
-      // // Riceve la risposta dal server
-      // {
-      //   char type;
-      //   int size;
-      //   char data[1024];
-      //   receive_message(sock, &type, &size, data);
-
-      //   if (type == MSG_REGISTRA_UTENTE || type == MSG_OK)
-      //   {
-      //     printf("Risposta dal server:\n%s\n", data);
-      //     is_registered = 1; // Imposta lo stato come registrato
-      //     // Salva il nome digitato dall'utente
-      //     strncpy(my_name, token, sizeof(my_name) - 1);
-      //     my_name[sizeof(my_name) - 1] = '\0';
-      //   }
-      //   else if (type == MSG_ERR)
-      //   {
-      //     printf("Errore: %s\n", data);
-      //   }
-      //   else
-      //   {
-      //     printf("Tipo di messaggio sconosciuto ricevuto: %c\n", type);
-      //   }
-      // }
       break;
     }
     case 'L':
@@ -295,30 +297,6 @@ int main(int argc, char *argv[])
       strncpy(my_name, token, sizeof(my_name) - 1);
       send_message(sock, MSG_LOGIN_UTENTE, token);
 
-      // Riceve la risposta dal server
-      // {
-      //   char type;
-      //   int size;
-      //   char data[1024];
-      //   receive_message(sock, &type, &size, data);
-
-      //   if (type == MSG_LOGIN_UTENTE || type == MSG_OK)
-      //   {
-      //     printf("Risposta dal server:\n%s\n", data);
-      //     is_registered = 1; // Imposta lo stato come registrato
-      //     // Salva il nome digitato dall'utente
-      //     strncpy(my_name, token, sizeof(my_name) - 1);
-      //     my_name[sizeof(my_name) - 1] = '\0';
-      //   }
-      //   else if (type == MSG_ERR)
-      //   {
-      //     printf("Errore: %s\n", data);
-      //   }
-      //   else
-      //   {
-      //     printf("Tipo di messaggio sconosciuto ricevuto: %c\n", type);
-      //   }
-      // }
       break;
     }
 
@@ -328,28 +306,6 @@ int main(int argc, char *argv[])
       my_name[0] = '\0';
       send_message(sock, MSG_CANCELLA_UTENTE, token);
 
-      // Riceve la risposta dal server
-      // {
-      //   char type;
-      //   int size;
-      //   char data[1024];
-      //   receive_message(sock, &type, &size, data);
-
-      //   if (type == MSG_CANCELLA_UTENTE)
-      //   {
-      //     printf("Risposta dal server:\n%s\n", data);
-      //     is_registered = 0;
-      //     my_name[0] = '\0';
-      //   }
-      //   else if (type == MSG_ERR)
-      //   {
-      //     printf("Errore: %s\n", data);
-      //   }
-      //   else
-      //   {
-      //     printf("Tipo di messaggio sconosciuto ricevuto: %c\n", type);
-      //   }
-      // }
       break;
     }
 
@@ -361,37 +317,8 @@ int main(int argc, char *argv[])
       else
       {
         send_message(sock, MSG_MATRICE, "");
-
-        // Riceve la risposta dal server
-      //   {
-      //     char type;
-      //     int size;
-      //     char data[1024];
-      //     receive_message(sock, &type, &size, data);
-
-      //     printf("Ricevuto dal server: Type=%c, Length=%u, Data=%s\n", type, size, data);
-
-      //     if (type == MSG_MATRICE)
-      //     {
-      //       print_matrice(data);
-      //     }
-      //     else if (type == MSG_TEMPO_ATTESA)
-      //     {
-      //       // Se il server è in pausa e invia il tempo di attesa residuo
-      //       printf("Partita in pausa. Tempo residuo di attesa: %s secondi\n", data);
-      //     }
-      //     else if (type == MSG_ERR)
-      //     {
-      //       printf("Errore: %s\n", data);
-      //     }
-      //     else
-      //     {
-      //       printf("Tipo di messaggio sconosciuto ricevuto: %c\n", type);
-      //     }
-      //   }
-      // }
-      break;
       }
+      break;
 
     case 'W':
       if (!is_registered)
@@ -408,30 +335,27 @@ int main(int argc, char *argv[])
         printf("Nome|Parola: %s\n", payload);
 
         send_message(sock, MSG_PAROLA, payload);
-
-        // Riceve la risposta dal server
-        // {
-        //   char type;
-        //   int size;
-        //   char data[1024];
-        //   receive_message(sock, &type, &size, data);
-
-        //   printf("Ricevuto dal server: Type=%c, Length=%u, Data=%s\n", type, size, data);
-
-        //   if (type == MSG_PUNTI_PAROLA)
-        //   {
-        //     printf("%s\n", data);
-        //   }
-        //   else if (type == MSG_ERR)
-        //   {
-        //     printf("Errore: %s\n", data);
-        //   }
-        //   else
-        //   {
-        //     printf("Tipo di messaggio sconosciuto ricevuto: %c\n", type);
-        //   }
-        // }
       }
+      break;
+
+    case 'B':
+      if(!is_registered)
+      {
+        printf("Devi essere registrato per inviare un messaggio\n");
+      }
+      else
+      {
+        printf("[DEBUG] testo della bacheca = '%s'\n", token);
+
+        char payload[256];
+        snprintf(payload, sizeof(payload), "%s|%s", my_name, token);
+        printf("[DEBUG] Invio payload: '%s'\n", payload);
+        send_message(sock, MSG_POST_BACHECA, payload);
+      }
+      break;
+
+    case 'S':
+      send_message(sock, MSG_SHOW_BACHECA, "");
       break;
 
     case 'Q':

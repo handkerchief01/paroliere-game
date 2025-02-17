@@ -21,6 +21,7 @@
 // Numero massimo di client in coda di connessione
 #define MAX_CLIENTS 32
 #define MAX_MATRICI 100 // numero massimo di righe/matrici nel file
+#define MAX_BACHECA 8
 
 // Variabili globali
 ClientNode *clientList = NULL;
@@ -40,16 +41,20 @@ TrieNode *dictionaryRoot = NULL;
 
 // Stato della partita: 0 = pausa (tempo di attesa), 1 = partita in corso.
 volatile sig_atomic_t partitaInCorso = 0;
-
 // Tempo residuo nell'intervallo corrente (in secondi)
 volatile sig_atomic_t tempo_residuo = 0;
-
 // Durate (in secondi)
 int TEMPO_PARTITA = 60; // Valore da riga di comando (o default)
 int TEMPO_PAUSA = 5;   // Sempre 60 secondi di pausa
 
 // Variabile globale per memorizzare i minuti dopo cui disconnettere
 static int DISCONNECT_AFTER = 0;
+
+// Struttura per la bacheca dei messaggi
+static BachecaMsg bacheca[MAX_BACHECA];
+static int bacheca_count = 0; // quanti messaggi attualmente in bacheca (<= 8)
+static int bacheca_index = 0; // prossima posizione di scrittura (indice circolare)
+pthread_mutex_t bacheca_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void add_client(int sock)
 {
@@ -282,6 +287,97 @@ void aggiorna_punteggio(const char *nome, int punteggio)
     curr = curr->next;
   }
   pthread_mutex_unlock(&utenti_mutex);
+}
+
+/**
+ * Salva il messaggio (user + text) nella bacheca (ring buffer).
+ * Sovrascrive il messaggio più vecchio se la bacheca è piena (max 8).
+ */
+int post_bacheca(const char *user, const char *text)
+{
+  // Controlla lunghezza text
+  if (strlen(text) > MAX_MSG_LEN)
+  {
+    return 0; // errore: troppo lungo
+  }
+
+  pthread_mutex_lock(&bacheca_mutex);
+
+  // Scriviamo in bacheca[bacheca_index]
+  strncpy(bacheca[bacheca_index].user, user, sizeof(bacheca[bacheca_index].user) - 1);
+  bacheca[bacheca_index].user[sizeof(bacheca[bacheca_index].user) - 1] = '\0';
+
+  strncpy(bacheca[bacheca_index].text, text, MAX_MSG_LEN);
+  bacheca[bacheca_index].text[MAX_MSG_LEN] = '\0';
+
+  // Avanziamo indice in modo circolare
+  bacheca_index = (bacheca_index + 1) % MAX_BACHECA;
+
+  // Se non siamo ancora a 8 messaggi, incrementa count
+  if (bacheca_count < MAX_BACHECA)
+  {
+    bacheca_count++;
+  }
+
+  pthread_mutex_unlock(&bacheca_mutex);
+
+  return 1; // OK
+}
+
+/**
+ * Costruisce un CSV con i messaggi in ordine dal più vecchio al più nuovo.
+ * Nel buffer out (size out_size) inseriamo qualcosa tipo:
+ *   "pippo|Ciao, pluto|Benvenuto, ..."
+ * Ritorna quanti byte abbiamo scritto, o -1 se errore.
+ */
+int show_bacheca(char *out, size_t out_size)
+{
+  pthread_mutex_lock(&bacheca_mutex);
+
+  // Scrivi l'intestazione
+  const char *header = "\"Utente\",\"Messaggio\"\n";
+  size_t used = 0;
+  size_t hdr_len = strlen(header);
+
+  if (hdr_len >= out_size)
+  {
+    pthread_mutex_unlock(&bacheca_mutex);
+    return -1; // buffer troppo piccolo
+  }
+
+  strcpy(out, header);
+  used = hdr_len;
+
+  // Calcola l'indice del messaggio "più vecchio"
+  int oldest = (bacheca_index - bacheca_count + MAX_BACHECA) % MAX_BACHECA;
+
+  // Aggiungi i record
+  for (int i = 0; i < bacheca_count; i++)
+  {
+    int idx = (oldest + i) % MAX_BACHECA;
+
+    // Eventualmente, qui dovresti anche gestire la “quote escaping”:
+    // se i campi contengono virgolette " interne, vanno raddoppiate
+    // (in CSV standard "pippo" diventa """pippo""").
+    // Per semplicità qui omettiamo.
+
+    int written = snprintf(
+        out + used,
+        out_size - used,
+        "\"%s\",\"%s\"\n",
+        bacheca[idx].user,  // utente
+        bacheca[idx].text); // messaggio
+
+    if (written < 0 || (size_t)written >= (out_size - used))
+    {
+      pthread_mutex_unlock(&bacheca_mutex);
+      return -1; // overflow
+    }
+    used += written;
+  }
+
+  pthread_mutex_unlock(&bacheca_mutex);
+  return (int)used;
 }
 
 void alarm_handler(int signum)
@@ -540,6 +636,50 @@ void *handle_client(void *client_socket)
         strcpy(response_data, "Partita non ancora iniziata");
       }
       break;
+
+    case MSG_POST_BACHECA:
+    {
+      char *tokenUtente = strtok(data, "|");
+      char *tokenTesto = strtok(NULL, "");
+      // se tokenTesto è NULL => formattazione errata
+      if (!tokenUtente || !tokenTesto)
+      {
+        send_message(sock, MSG_ERR, "Formato messaggio bacheca non valido");
+        break;
+      }
+      // se vuoi controllare che l'utente esista già:
+      // if (!login_utente(tokenUtente)) { ... MSG_ERR ... }
+
+      // Salva in bacheca
+      if (!post_bacheca(tokenUtente, tokenTesto))
+      {
+        // se è fallito perché > MAX_MSG_LEN
+        send_message(sock, MSG_ERR, "Messaggio troppo lungo");
+      }
+      else
+      {
+        send_message(sock, MSG_OK, "Messaggio registrato in bacheca");
+      } 
+    break;
+    }
+
+    case MSG_SHOW_BACHECA:
+    {
+      printf("[DEBUG] Entrato in case MSG_SHOW_BACHECA\n");
+
+      char buffer[2048];
+      int n = show_bacheca(buffer, sizeof(buffer));
+
+      if (n < 0)
+      {
+        send_message(sock, MSG_ERR, "Errore nella formattazione bacheca");
+      }
+      else
+      {
+        send_message(sock, MSG_SHOW_BACHECA, buffer);
+      }
+      break;
+    }
 
     default:
       response_type = MSG_ERR;
