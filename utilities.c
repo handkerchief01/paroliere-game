@@ -102,17 +102,6 @@ int is_italian_alnum(char c)
   return 0;
 }
 
-void receive_and_check(int sock, char *type, int *size, char *data)
-{
-  receive_message(sock, type, size, data);
-  if (*type == MSG_SERVER_SHUTDOWN)
-  {
-    printf("Il server sta per chiudersi. Terminazione del client.\n");
-    close(sock);
-    exit(0);
-  }
-}
-
 FILE *logFile = NULL;
 pthread_mutex_t logMutex = PTHREAD_MUTEX_INITIALIZER;
 

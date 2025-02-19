@@ -1,3 +1,6 @@
+#ifndef STRUCTS_H
+#define STRUCTS_H
+
 #include <pthread.h>
 
 // Definizioni di macro
@@ -12,7 +15,6 @@
 #define MSG_PUNTI_PAROLA 'P'
 #define MSG_SERVER_SHUTDOWN 'B'
 #define MSG_USCITA 'U'
-#define MSG_HELP 'H'
 #define MSG_CLASSIFICA 'C'
 #define MSG_LOGIN_UTENTE 'L'
 #define MSG_CANCELLA_UTENTE 'D'
@@ -44,3 +46,5 @@ typedef struct
   char user[20];
   char text[MAX_MSG_LEN + 1];
 } BachecaMsg;
+
+#endif

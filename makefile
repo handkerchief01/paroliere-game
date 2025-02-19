@@ -5,7 +5,7 @@ CC = gcc
 CFLAGS = -Wall -pthread
 
 # Definisce i file oggetto
-SERVER_OBJS = paroliere_server.o matrice.o utilities.o trie.o
+SERVER_OBJS = paroliere_server.o matrice.o server_utilities.o utilities.o trie.o
 CLIENT_OBJS = paroliere_client.o matrice.o utilities.o trie.o
 
 # Definisce i file eseguibili
@@ -24,7 +24,7 @@ $(CLIENT_TARGET): $(CLIENT_OBJS)
 	$(CC) $(CFLAGS) -o $(CLIENT_TARGET) $(CLIENT_OBJS)
 
 # Regola per compilare il file oggetto server.o
-paroliere_server.o: paroliere_server.c matrice.h utilities.h trie.h
+paroliere_server.o: paroliere_server.c matrice.h server_utilities.h utilities.h trie.h
 	$(CC) $(CFLAGS) -c paroliere_server.c
 
 # Regola per compilare il file oggetto client.o
@@ -34,6 +34,10 @@ paroliere_client.o: paroliere_client.c matrice.h utilities.h trie.h
 # Regola per compilare il file oggetto matrice.o
 matrice.o: matrice.c matrice.h
 	$(CC) $(CFLAGS) -c matrice.c
+
+# Regola per compilare il file oggetto server_utilities.o
+server_utilities.o: server_utilities.c server_utilities.h utilities.h trie.h
+	$(CC) $(CFLAGS) -c server_utilities.c
 
 # Regola per compilare il file oggetto utilities.o
 utilities.o: utilities.c utilities.h
