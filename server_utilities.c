@@ -268,9 +268,6 @@ void build_classifica_csv(char *out, size_t out_size)
   // Ora ogni utente su una riga: "nome","punteggio"
   for (int k = 0; k < count; k++)
   {
-    // Se il nome può contenere virgole o virgolette, dovresti "escapare" le virgolette
-    // Per brevità, assumiamo che i nomi non contengano doppi apici.
-    // Se contengono virgole, non è un problema, perché è racchiuso in doppi apici.
     written = snprintf(out + used, out_size - used,
                        "\"%s\",%d\n",
                        array[k]->nome,
@@ -290,7 +287,7 @@ void build_classifica_csv(char *out, size_t out_size)
   if (count > 0)
   {
     written = snprintf(out + used, out_size - used,
-                       "\"Vincitore\",\"%s\"\n",
+                       "\"Vincitore\",\"%s\". Una nuova partita inizierà tra un minuto\n",
                        array[0]->nome);
     if (written > 0 && (size_t)written < (out_size - used))
     {

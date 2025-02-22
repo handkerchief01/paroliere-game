@@ -46,7 +46,7 @@ volatile sig_atomic_t partitaInCorso = 0;
 volatile sig_atomic_t tempo_residuo = 0;
 // Durate (in secondi)
 int TEMPO_PARTITA = 60; // Valore da riga di comando (o default)
-int TEMPO_PAUSA = 5;   // Sempre 60 secondi di pausa
+int TEMPO_PAUSA = 60;   // Sempre 60 secondi di pausa
 
 // Variabile globale per memorizzare i minuti dopo cui disconnettere
 static int DISCONNECT_AFTER = 0;
@@ -58,6 +58,7 @@ static int bacheca_index = 0; // prossima posizione di scrittura (indice circola
 pthread_mutex_t bacheca_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 volatile sig_atomic_t partitaTerminataFlag = 0; // Indica che la partita è appena terminata, mi serve per lo scorer
+volatile sig_atomic_t partitaIniziataFlag = 0;  // Indica che la partita è appena iniziata, mi serve per lo scorer
 
 void add_client(int sock)
 {
@@ -204,6 +205,7 @@ void alarm_handler(int signum)
     {
       // Se eravamo in pausa, la pausa è finita: inizia la partita
       partitaInCorso = 1;
+      partitaIniziataFlag = 1;
       tempo_residuo = TEMPO_PARTITA;
       // Per la nuova partita, aggiorniamo la matrice (per esempio, prendiamo la successiva)
       updateMatrixFlag = 1;
@@ -218,8 +220,35 @@ void *controller_thread(void *arg)
 {
   while (!shutdownRequested)
   {
+    // Aspetta che partitaIniziataFlag diventi 1
+    while (!partitaIniziataFlag && !shutdownRequested)
+    {
+      sleep(1);
+    }
+    if (shutdownRequested)
+      break;
+
+    // Se siamo qui, la partita è iniziata
+    partitaIniziataFlag = 0;
+
+    // Converti la matrice in stringa
+    char matrix_str[512];
+    matrice_to_string(&mat_attuale, matrix_str, sizeof(matrix_str));
+
+    char message[1024];
+    snprintf(message, sizeof(message), "Partita iniziata!\n%s\nTempo residuo: %d secondi", matrix_str, tempo_residuo);
+
+    // Invia la matrice a tutti i client
+    pthread_mutex_lock(&clientListMutex);
+    ClientNode *c = clientList;
+    while (c != NULL)
+    {
+      invia_messaggio(c->sock, MSG_MATRICE, message);
+      c = c->next;
+    }
+    pthread_mutex_unlock(&clientListMutex);
+
     // Aspetta che partitaTerminataFlag diventi 1
-    // (puoi usare un pthread_cond, oppure un semplice "while" con piccolo sleep)
     while (!partitaTerminataFlag && !shutdownRequested)
     {
       sleep(1);
@@ -234,9 +263,9 @@ void *controller_thread(void *arg)
     char scoreboard[1024];
     build_classifica_csv(scoreboard, sizeof(scoreboard));
 
-    // Invia a tutti
+    // Invia classifica a tutti i client
     pthread_mutex_lock(&clientListMutex);
-    ClientNode *c = clientList;
+    c = clientList;
     while (c != NULL)
     {
       invia_messaggio(c->sock, MSG_PUNTI_FINALI, scoreboard);
