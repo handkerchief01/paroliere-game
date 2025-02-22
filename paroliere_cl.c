@@ -56,7 +56,7 @@ void *receiver_thread(void *arg)
       break;
 
     case MSG_MATRICE:
-      print_matrice(data);
+      printf("Matrice ricevuta:\n%s\n", data);
       break;
 
     case MSG_TEMPO_ATTESA:
@@ -128,11 +128,6 @@ void print_help()
   printf("msg <testo_messaggio> -> Invia un messaggio sulla bacheca\n");
   printf("show-msg -> Mostra i messaggi sulla bacheca\n");
   printf("fine -> Esci dal gioco\n");
-}
-
-void print_matrice(const char *data)
-{
-  printf("Matrice ricevuta:\n%s\n", data);
 }
 
 int main(int argc, char *argv[])

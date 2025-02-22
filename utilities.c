@@ -4,6 +4,8 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include <time.h>
+#include <ctype.h>
+
 #include "structs.h"
 #include "macros.h"
 #include "utilities.h"

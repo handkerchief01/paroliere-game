@@ -1,7 +1,6 @@
 #include "matrice.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <time.h>
 
 const char *lettere_possibili[] = {

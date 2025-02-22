@@ -150,7 +150,7 @@ int dfs_parola(const Matrice *mat, int i, int j, const char *parola, int index, 
   if (visited[i][j])
     return 0;
 
-  char *cell = mat->matrice[i][j];
+  const char *cell = mat->matrice[i][j];
   int cellLen = strlen(cell);
 
   // Confronta, in modo case-insensitive, la parte della parola con il contenuto della cella

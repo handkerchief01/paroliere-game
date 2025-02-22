@@ -304,13 +304,12 @@ void *handle_client(void *client_socket)
       if (registra_utente(data))
       {
         log_event("Registrazione utente: %s", data);
-        char matrix_str[1024];
+        char matrix_str[512];
         matrice_to_string(&mat_attuale, matrix_str, sizeof(matrix_str));
         if (partitaInCorso == 1)
         {
-          sprintf(response_data,
-                  "Registrazione avvenuta con successo\n%s\nPartita in corso, tempo residuo: %d secondi",
-                  matrix_str, tempo_residuo);
+          snprintf(response_data, sizeof(response_data), "Registrazione avvenuta con successo\n%s\nPartita in corso, tempo residuo: %d secondi",
+                   matrix_str, tempo_residuo);
         }
         else
         {
