@@ -26,7 +26,7 @@ void *receiver_thread(void *arg)
 
   while (1)
   {
-    int n = receive_message(sock, &type, &size, data);
+    int n = ricevi_messaggio(sock, &type, &size, data);
 
     if (n <= 0)
     {
@@ -120,7 +120,7 @@ void print_help()
 {
   printf("Comandi disponibili:\n");
   printf("aiuto -> Mostra questo messaggio di aiuto\n");
-  printf("registra utente <nome_utente> -> Registra un nuovo utente (sono ammessi solo caratteri alfanumerici dell'alfabeto italiano)\n");
+  printf("registra_utente <nome_utente> -> Registra un nuovo utente (sono ammessi solo caratteri alfanumerici dell'alfabeto italiano)\n");
   printf("login_utente <nome_utente> -> Effettua il login con un utente esistente\n");
   printf("cancella_utente <nome_utente> -> Cancella un utente registrato\n");
   printf("matrice -> Richiede la matrice corrente (devi essere registrato)\n");
@@ -218,16 +218,12 @@ int main(int argc, char *argv[])
     {
       command_type = 'H';
     }
-    else if (strcmp(token, "registra") == 0)
+    else if (strcmp(token, "registra_utente") == 0)
     {
       token = strtok(NULL, " ");
-      if (token != NULL && strcmp(token, "utente") == 0)
+      if (token != NULL)
       {
-        token = strtok(NULL, " ");
-        if (token != NULL)
-        {
-          command_type = 'R';
-        }
+        command_type = 'R';
       }
     }
     else if (strcmp(token, "login_utente") == 0)
@@ -291,7 +287,7 @@ int main(int argc, char *argv[])
     {
       printf("Registrazione dell'utente %s\n", token);
       strncpy(my_name, token, sizeof(my_name) - 1);
-      send_message(sock, MSG_REGISTRA_UTENTE, token);
+      invia_messaggio(sock, MSG_REGISTRA_UTENTE, token);
 
       break;
     }
@@ -299,7 +295,7 @@ int main(int argc, char *argv[])
     { 
       printf("Login dell'utente %s\n", token);
       strncpy(my_name, token, sizeof(my_name) - 1);
-      send_message(sock, MSG_LOGIN_UTENTE, token);
+      invia_messaggio(sock, MSG_LOGIN_UTENTE, token);
 
       break;
     }
@@ -308,7 +304,7 @@ int main(int argc, char *argv[])
     {
       printf("Cancellazione dell'utente %s\n", token);
       my_name[0] = '\0';
-      send_message(sock, MSG_CANCELLA_UTENTE, token);
+      invia_messaggio(sock, MSG_CANCELLA_UTENTE, token);
 
       break;
     }
@@ -320,7 +316,7 @@ int main(int argc, char *argv[])
       }
       else
       {
-        send_message(sock, MSG_MATRICE, "");
+        invia_messaggio(sock, MSG_MATRICE, "");
       }
       break;
 
@@ -338,7 +334,7 @@ int main(int argc, char *argv[])
 
         printf("Nome|Parola: %s\n", payload);
 
-        send_message(sock, MSG_PAROLA, payload);
+        invia_messaggio(sock, MSG_PAROLA, payload);
       }
       break;
 
@@ -352,12 +348,12 @@ int main(int argc, char *argv[])
         char payload[256];
         snprintf(payload, sizeof(payload), "%s|%s", my_name, token);
         printf("Invio: '%s'\n", payload);
-        send_message(sock, MSG_POST_BACHECA, payload);
+        invia_messaggio(sock, MSG_POST_BACHECA, payload);
       }
       break;
 
     case 'S':
-      send_message(sock, MSG_SHOW_BACHECA, "");
+      invia_messaggio(sock, MSG_SHOW_BACHECA, "");
       break;
 
     case 'Q':

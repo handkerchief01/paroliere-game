@@ -5,12 +5,12 @@ CC = gcc
 CFLAGS = -Wall -pthread
 
 # Definisce i file oggetto
-SERVER_OBJS = paroliere_server.o matrice.o server_utilities.o utilities.o trie.o
-CLIENT_OBJS = paroliere_client.o matrice.o utilities.o trie.o
+SERVER_OBJS = paroliere_srv.o matrice.o server_utilities.o utilities.o trie.o
+CLIENT_OBJS = paroliere_cl.o matrice.o utilities.o trie.o
 
 # Definisce i file eseguibili
-SERVER_TARGET = paroliere_server
-CLIENT_TARGET = paroliere_client
+SERVER_TARGET = paroliere_srv
+CLIENT_TARGET = paroliere_cl
 
 # Regola predefinita, compila tutti i target
 all: $(SERVER_TARGET) $(CLIENT_TARGET)
@@ -24,12 +24,12 @@ $(CLIENT_TARGET): $(CLIENT_OBJS)
 	$(CC) $(CFLAGS) -o $(CLIENT_TARGET) $(CLIENT_OBJS)
 
 # Regola per compilare il file oggetto server.o
-paroliere_server.o: paroliere_server.c matrice.h server_utilities.h utilities.h trie.h
-	$(CC) $(CFLAGS) -c paroliere_server.c
+paroliere_srv.o: paroliere_srv.c matrice.h server_utilities.h utilities.h trie.h
+	$(CC) $(CFLAGS) -c paroliere_srv.c
 
 # Regola per compilare il file oggetto client.o
-paroliere_client.o: paroliere_client.c matrice.h utilities.h trie.h
-	$(CC) $(CFLAGS) -c paroliere_client.c
+paroliere_cl.o: paroliere_cl.c matrice.h utilities.h trie.h
+	$(CC) $(CFLAGS) -c paroliere_cl.c
 
 # Regola per compilare il file oggetto matrice.o
 matrice.o: matrice.c matrice.h

@@ -335,7 +335,7 @@ void handle_parola(int client_socket, const char *nome, const char *parola)
     // Se la parola è già stata proposta, invio 0 punti
     response_type = MSG_PUNTI_PAROLA;
     snprintf(response_data, sizeof(response_data), "Parola già inserita, punteggio parola: %d", 0);
-    send_message(client_socket, response_type, response_data);
+    invia_messaggio(client_socket, response_type, response_data);
     return;
   }
 
@@ -344,7 +344,7 @@ void handle_parola(int client_socket, const char *nome, const char *parola)
   {
     response_type = MSG_ERR;
     strcpy(response_data, "Parola non valida");
-    send_message(client_socket, response_type, response_data);
+    invia_messaggio(client_socket, response_type, response_data);
     return;
   }
 
@@ -367,5 +367,5 @@ void handle_parola(int client_socket, const char *nome, const char *parola)
 
   response_type = MSG_PUNTI_PAROLA;
   snprintf(response_data, sizeof(response_data), "Punteggio parola: %d", punteggio);
-  send_message(client_socket, response_type, response_data);
+  invia_messaggio(client_socket, response_type, response_data);
 }

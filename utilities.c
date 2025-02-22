@@ -8,30 +8,30 @@
 #include "macros.h"
 #include "utilities.h"
 
-void send_message(int sock, char type, const char *data)
+void invia_messaggio(int sock, char type, const char *data)
 {
   int ret;
   // Calcoliamo la lunghezza del payload
-  int size = (data == NULL) ? 0 : strlen(data);
+  int length = (data == NULL) ? 0 : strlen(data);
 
   // 1) Inviamo la dimensione (int)
-  SYSC(ret, write(sock, &size, sizeof(int)), "Write error: size");
+  SYSC(ret, write(sock, &length, sizeof(int)), "Errore in scrittura: length");
 
   // 2) Inviamo il tipo (char)
-  SYSC(ret, write(sock, &type, sizeof(char)), "Write error: type");
+  SYSC(ret, write(sock, &type, sizeof(char)), "Errore in scrittura: type");
 
-  // 3) Inviamo il payload (size byte, se > 0)
-  if (size > 0)
+  // 3) Inviamo il payload (length byte, se > 0)
+  if (length > 0)
   {
-    SYSC(ret, write(sock, data, size), "Write error: payload");
+    SYSC(ret, write(sock, data, length), "Errore in scrittura: data");
   }
 }
 
-int receive_message(int sock, char *type, int *size, char *data)
+int ricevi_messaggio(int sock, char *type, int *length, char *data)
 {
   int ret;
 
-  SYSC(ret, read(sock, size, sizeof(int)), "Read error: size");
+  SYSC(ret, read(sock, length, sizeof(int)), "Errore in lettura: length");
   if (ret == 0)
   {
     // Significa EOF (il client ha chiuso la connessione in modo ordinato)
@@ -46,7 +46,7 @@ int receive_message(int sock, char *type, int *size, char *data)
   // Se ret > 0, la lettura è andata avanti.
 
   // 2) Leggiamo il tipo (char)
-  SYSC(ret, read(sock, type, sizeof(char)), "Read error: type");
+  SYSC(ret, read(sock, type, sizeof(char)), "Errore in lettura: type");
   if (ret == 0)
     return 0;
   else if (ret == -2)
@@ -56,9 +56,9 @@ int receive_message(int sock, char *type, int *size, char *data)
   }
 
   // 3) Leggiamo il payload
-  if (*size > 0)
+  if (*length > 0)
   {
-    SYSC(ret, read(sock, data, *size), "Read error: payload");
+    SYSC(ret, read(sock, data, *length), "Errore in lettura: data");
     if (ret == 0)
       return 0;
     else if (ret == -2)
@@ -66,7 +66,7 @@ int receive_message(int sock, char *type, int *size, char *data)
       errno = EAGAIN;
       return -1;
     }
-    data[*size] = '\0';
+    data[*length] = '\0';
   }
   else
   {

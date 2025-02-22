@@ -165,11 +165,6 @@ int show_bacheca(char *out, size_t out_size)
   {
     int idx = (oldest + i) % MAX_BACHECA;
 
-    // Eventualmente, qui dovresti anche gestire la “quote escaping”:
-    // se i campi contengono virgolette " interne, vanno raddoppiate
-    // (in CSV standard "pippo" diventa """pippo""").
-    // Per semplicità qui omettiamo.
-
     int written = snprintf(
         out + used,
         out_size - used,
@@ -244,7 +239,7 @@ void *controller_thread(void *arg)
     ClientNode *c = clientList;
     while (c != NULL)
     {
-      send_message(c->sock, MSG_PUNTI_FINALI, scoreboard);
+      invia_messaggio(c->sock, MSG_PUNTI_FINALI, scoreboard);
       c = c->next;
     }
     pthread_mutex_unlock(&clientListMutex);
@@ -273,7 +268,7 @@ void *handle_client(void *client_socket)
   while (1)
   {
     // Leggiamo un messaggio dal client
-    int n = receive_message(sock, &type, &size, data);
+    int n = ricevi_messaggio(sock, &type, &size, data);
     if (n == 0)
     {
       // EOF => client ha chiuso
@@ -291,7 +286,7 @@ void *handle_client(void *client_socket)
       }
       else
       {
-        perror("receive_message() fallita");
+        perror("ricevi_messaggio() fallita");
       }
       close(sock);
       remove_client(sock);
@@ -337,11 +332,11 @@ void *handle_client(void *client_socket)
       if (cancella_utente(data))
       {
         log_event("Cancellazione utente: %s", data);
-        send_message(sock, MSG_CANCELLA_UTENTE, "Cancellazione avvenuta con successo");
+        invia_messaggio(sock, MSG_CANCELLA_UTENTE, "Cancellazione avvenuta con successo");
       }
       else
       {
-        send_message(sock, MSG_ERR, "Utente non trovato o cancellazione fallita");
+        invia_messaggio(sock, MSG_ERR, "Utente non trovato o cancellazione fallita");
       }
       break;
 
@@ -349,11 +344,11 @@ void *handle_client(void *client_socket)
       if (login_utente(data))
       {
         log_event("Login utente: %s", data);
-        send_message(sock, MSG_LOGIN_UTENTE, "Login avvenuto con successo");
+        invia_messaggio(sock, MSG_LOGIN_UTENTE, "Login avvenuto con successo");
       }
       else
       {
-        send_message(sock, MSG_ERR, "Utente non registrato");
+        invia_messaggio(sock, MSG_ERR, "Utente non registrato");
       }
       break;
 
@@ -400,7 +395,7 @@ void *handle_client(void *client_socket)
           // Se il formato non è corretto
           response_type = MSG_ERR;
           strcpy(response_data, "Formato del messaggio non valido");
-          send_message(sock, response_type, response_data);
+          invia_messaggio(sock, response_type, response_data);
         }
         continue;
       }
@@ -418,7 +413,7 @@ void *handle_client(void *client_socket)
       // se tokenTesto è NULL => formattazione errata
       if (!tokenUtente || !tokenTesto)
       {
-        send_message(sock, MSG_ERR, "Formato messaggio bacheca non valido");
+        invia_messaggio(sock, MSG_ERR, "Formato messaggio bacheca non valido");
         break;
       }
       // se vuoi controllare che l'utente esista già:
@@ -428,11 +423,11 @@ void *handle_client(void *client_socket)
       if (!post_bacheca(tokenUtente, tokenTesto))
       {
         // se è fallito perché > MAX_MSG_LEN
-        send_message(sock, MSG_ERR, "Messaggio troppo lungo");
+        invia_messaggio(sock, MSG_ERR, "Messaggio troppo lungo");
       }
       else
       {
-        send_message(sock, MSG_OK, "Messaggio registrato in bacheca");
+        invia_messaggio(sock, MSG_OK, "Messaggio registrato in bacheca");
       } 
     break;
     }
@@ -444,11 +439,11 @@ void *handle_client(void *client_socket)
 
       if (n < 0)
       {
-        send_message(sock, MSG_ERR, "Errore nella formattazione bacheca");
+        invia_messaggio(sock, MSG_ERR, "Errore nella formattazione bacheca");
       }
       else
       {
-        send_message(sock, MSG_SHOW_BACHECA, buffer);
+        invia_messaggio(sock, MSG_SHOW_BACHECA, buffer);
       }
       break;
     }
@@ -460,7 +455,7 @@ void *handle_client(void *client_socket)
     }
 
     // Invia la risposta
-    send_message(sock, response_type, response_data);
+    invia_messaggio(sock, response_type, response_data);
   }
 
   close(sock);
@@ -771,7 +766,7 @@ int main(int argc, char *argv[])
   ClientNode *curr = clientList;
   while (curr != NULL)
   {
-    send_message(curr->sock, MSG_SERVER_SHUTDOWN, "Server in chiusura");
+    invia_messaggio(curr->sock, MSG_SERVER_SHUTDOWN, "Server in chiusura");
     curr = curr->next;
   }
   pthread_mutex_unlock(&clientListMutex);
