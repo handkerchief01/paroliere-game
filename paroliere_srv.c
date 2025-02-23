@@ -298,6 +298,17 @@ void *controller_thread(void *arg)
       c = c->next;
     }
     pthread_mutex_unlock(&clientListMutex);
+
+    pthread_mutex_lock(&utenti_mutex);
+    Utente *utente = utenti_head;
+    while (utente != NULL)
+    {
+      utente->punteggio = 0;
+      utente->num_parole = 0;
+      utente->parole_usate[0][0] = '\0';
+      utente = utente->next;
+    }
+    pthread_mutex_unlock(&utenti_mutex);
   }
   return NULL;
 }
