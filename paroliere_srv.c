@@ -60,6 +60,24 @@ pthread_mutex_t bacheca_mutex = PTHREAD_MUTEX_INITIALIZER;
 volatile sig_atomic_t partitaTerminataFlag = 0; // Indica che la partita è appena terminata, mi serve per lo scorer
 volatile sig_atomic_t partitaIniziataFlag = 0;  // Indica che la partita è appena iniziata, mi serve per lo scorer
 
+int get_next_matrice(Matrice *dest)
+{
+  if (count_matrici == 0 && current_index == 0) // quindi se non viene letto alcun file (matrice.txt)
+  {
+    genera_matrice_casuale(&mat_attuale);
+    array_matrici[0] = mat_attuale;
+    return 0;
+  }
+
+  // Copia la matrice dall'array in dest
+  *dest = array_matrici[current_index];
+
+  // Avanziamo l'indice in modo circolare (se vuoi riusare in loop)
+  // o lo incrementi fino a fermarti all'ultima
+  current_index = (current_index + 1) % count_matrici;
+  return 0;
+}
+
 void add_client(int sock)
 {
   ClientNode *node = malloc(sizeof(ClientNode));
@@ -205,10 +223,10 @@ void alarm_handler(int signum)
     {
       // Se eravamo in pausa, la pausa è finita: inizia la partita
       partitaInCorso = 1;
-      partitaIniziataFlag = 1;
-      tempo_residuo = TEMPO_PARTITA;
       // Per la nuova partita, aggiorniamo la matrice (per esempio, prendiamo la successiva)
       updateMatrixFlag = 1;
+      partitaIniziataFlag = 1;
+      tempo_residuo = TEMPO_PARTITA;
       write(STDOUT_FILENO, "Pausa terminata. La partita inizia.\n", 36);
     }
   }
@@ -220,6 +238,14 @@ void *controller_thread(void *arg)
 {
   while (!shutdownRequested)
   {
+    while (!updateMatrixFlag)
+    {
+      sleep(1);
+    }
+    
+    get_next_matrice(&mat_attuale);
+    updateMatrixFlag = 0;
+
     // Aspetta che partitaIniziataFlag diventi 1
     while (!partitaIniziataFlag && !shutdownRequested)
     {
@@ -551,23 +577,6 @@ int leggi_tutte_le_matrici(const char *filename)
   return 0;
 }
 
-int get_next_matrice(Matrice *dest)
-{
-  if (count_matrici == 0)
-  {
-    fprintf(stderr, "Nessuna matrice caricata!\n");
-    return -1;
-  }
-
-  // Copia la matrice dall'array in dest
-  *dest = array_matrici[current_index];
-
-  // Avanziamo l'indice in modo circolare (se vuoi riusare in loop)
-  // o lo incrementi fino a fermarti all'ultima
-  current_index = (current_index + 1) % count_matrici;
-  return 0;
-}
-
 int main(int argc, char *argv[])
 {
   signal(SIGPIPE, SIG_IGN);
@@ -690,13 +699,6 @@ int main(int argc, char *argv[])
       exit(EXIT_FAILURE);
     }
   }
-  else
-  {
-    // Genera matrice casuale
-    genera_matrice_casuale(&mat_attuale);
-    count_matrici = 1;
-    array_matrici[0] = mat_attuale;
-  }
 
   /* Imposta lo stato iniziale del gioco.
      Per esempio, il server parte in pausa (tempo di attesa).
@@ -714,10 +716,6 @@ int main(int argc, char *argv[])
     exit(EXIT_FAILURE);
   }
   alarm(1);
-
-  /* Imposta la matrice iniziale per la partita
-  */
-  get_next_matrice(&mat_attuale);
 
   // Eventuale impostazione del seed per la generazione pseudocasuale
   srand(rnd_seed);
@@ -781,12 +779,6 @@ int main(int argc, char *argv[])
       close(new_socket);
       free(client_sock);
       remove_client(new_socket);
-    }
-
-    if (updateMatrixFlag)
-    {
-      get_next_matrice(&mat_attuale);
-      updateMatrixFlag = 0;
     }
   }
 
