@@ -59,6 +59,12 @@ void *receiver_thread(void *arg)
       printf("Matrice ricevuta:\n%s\n", data);
       break;
 
+
+    case MSG_TEMPO_PARTITA:
+      // Se il server è in pausa e invia il tempo di attesa residuo
+      printf("Tempo residuo della partita: %s secondi\n", data);
+      break;
+
     case MSG_TEMPO_ATTESA:
       // Se il server è in pausa e invia il tempo di attesa residuo
       printf("Partita in pausa. Tempo residuo di attesa: %s secondi\n", data);

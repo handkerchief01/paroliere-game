@@ -362,11 +362,25 @@ void *handle_client(void *client_socket)
       if (errno == EAGAIN)
       {
         printf("Client inattivo da troppo tempo. Espulsione (sock=%d).\n", sock);
+
       }
       else
       {
         perror("ricevi_messaggio() fallita");
       }
+      pthread_mutex_lock(&utenti_mutex);
+      Utente *utente = utenti_head;
+      while (utente != NULL)
+      {
+        if (utente->sock == sock)
+        {
+          utente->in_gioco = 0;
+          utente->sock = -1;
+          break;
+        }
+        utente = utente->next;
+      }
+      pthread_mutex_unlock(&utenti_mutex);
       close(sock);
       remove_client(sock);
       return NULL;
@@ -380,6 +394,7 @@ void *handle_client(void *client_socket)
     switch (type)
     {
     case MSG_REGISTRA_UTENTE:
+    {
       if (registra_utente(sock, data))
       {
         log_event("Registrazione utente: %s", data);
@@ -404,9 +419,12 @@ void *handle_client(void *client_socket)
         response_type = MSG_ERR;
         strcpy(response_data, "Nome utente già esistente o non valido");
       }
+      invia_messaggio(sock, response_type, response_data);
       break;
+    }
 
     case MSG_CANCELLA_UTENTE:
+    {
       if (cancella_utente(data))
       {
         log_event("Cancellazione utente: %s", data);
@@ -416,9 +434,12 @@ void *handle_client(void *client_socket)
       {
         invia_messaggio(sock, MSG_ERR, "Utente non trovato o cancellazione fallita");
       }
+      invia_messaggio(sock, response_type, response_data);
       break;
+    }
 
     case MSG_LOGIN_UTENTE:
+    {
       if (login_utente(sock, data))
       {
         log_event("Login utente: %s", data);
@@ -428,33 +449,33 @@ void *handle_client(void *client_socket)
       {
         invia_messaggio(sock, MSG_ERR, "Utente non registrato oppure già in gioco");
       }
+      invia_messaggio(sock, response_type, response_data);
       break;
+    }
 
     case MSG_MATRICE:
+    {
       if (partitaInCorso == 1)
       {
       response_type = MSG_MATRICE;
       matrice_to_string(&mat_attuale, response_data, sizeof(response_data));
+      invia_messaggio(sock, response_type, response_data);
+      sprintf(response_data, "%d", tempo_residuo);
+      invia_messaggio(sock, MSG_TEMPO_PARTITA, response_data);
       break;
       }
       else
       {
         response_type = MSG_TEMPO_ATTESA;
         sprintf(response_data, "%d", tempo_residuo);
+        invia_messaggio(sock, response_type, response_data);
         break;
       }
-
-    case MSG_TEMPO_ATTESA:
-      response_type = MSG_TEMPO_ATTESA;
-      sprintf(response_data, "%d", tempo_residuo);
       break;
-
-    case MSG_TEMPO_PARTITA:
-      response_type = MSG_TEMPO_PARTITA;
-      sprintf(response_data, "%d", tempo_residuo);
-      break;
+    }
 
     case MSG_PAROLA:
+    {
       if (partitaInCorso == 1)
       {
         char nome[20], parola[32];
@@ -482,7 +503,9 @@ void *handle_client(void *client_socket)
         response_type = MSG_ERR;
         strcpy(response_data, "Partita non ancora iniziata");
       }
+      invia_messaggio(sock, response_type, response_data);
       break;
+    }
 
     case MSG_POST_BACHECA:
     {
@@ -527,11 +550,9 @@ void *handle_client(void *client_socket)
     default:
       response_type = MSG_ERR;
       strcpy(response_data, "Messaggio non riconosciuto");
+      invia_messaggio(sock, response_type, response_data);
       break;
     }
-
-    // Invia la risposta
-    invia_messaggio(sock, response_type, response_data);
   }
 
   close(sock);
