@@ -328,6 +328,19 @@ void *handle_client(void *client_socket)
     {
       // EOF => client ha chiuso
       printf("Client disconnesso (sock=%d)\n", sock);
+      pthread_mutex_lock(&utenti_mutex);
+      Utente *utente = utenti_head;
+      while (utente != NULL)
+      {
+        if (utente->sock == sock)
+        {
+          utente->in_gioco = 0;
+          utente->sock = -1;
+          break;
+        }
+        utente = utente->next;
+      }
+      pthread_mutex_unlock(&utenti_mutex);
       close(sock);
       remove_client(sock);
       return NULL;
@@ -356,7 +369,7 @@ void *handle_client(void *client_socket)
     switch (type)
     {
     case MSG_REGISTRA_UTENTE:
-      if (registra_utente(data))
+      if (registra_utente(sock, data))
       {
         log_event("Registrazione utente: %s", data);
         char matrix_str[512];
@@ -395,14 +408,14 @@ void *handle_client(void *client_socket)
       break;
 
     case MSG_LOGIN_UTENTE:
-      if (login_utente(data))
+      if (login_utente(sock, data))
       {
         log_event("Login utente: %s", data);
         invia_messaggio(sock, MSG_LOGIN_UTENTE, "Login avvenuto con successo");
       }
       else
       {
-        invia_messaggio(sock, MSG_ERR, "Utente non registrato");
+        invia_messaggio(sock, MSG_ERR, "Utente non registrato oppure già in gioco");
       }
       break;
 
@@ -470,8 +483,6 @@ void *handle_client(void *client_socket)
         invia_messaggio(sock, MSG_ERR, "Formato messaggio bacheca non valido");
         break;
       }
-      // se vuoi controllare che l'utente esista già:
-      // if (!login_utente(tokenUtente)) { ... MSG_ERR ... }
 
       // Salva in bacheca
       if (!post_bacheca(tokenUtente, tokenTesto))

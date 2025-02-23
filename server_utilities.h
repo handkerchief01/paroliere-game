@@ -12,8 +12,8 @@ extern Matrice mat_attuale;
 extern TrieNode *dictionaryRoot;
 
 /* Dichiarazione delle funzioni */
-int registra_utente(const char *nome);
-int login_utente(const char *nome);
+int registra_utente(int sock, const char *nome);
+int login_utente(int sock, const char *nome);
 int cancella_utente(const char *nome);
 
 int parola_in_matrice(const Matrice *mat, const char *parola);

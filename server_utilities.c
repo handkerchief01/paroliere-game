@@ -9,7 +9,7 @@
 #include "server_utilities.h"
 
 // Funzione per registrare un utente nella lista
-int registra_utente(const char *nome)
+int registra_utente(int sock, const char *nome)
 {
   printf("Registrazione utente: %s\n", nome);
 
@@ -50,6 +50,8 @@ int registra_utente(const char *nome)
   nuovo_utente->nome[sizeof(nuovo_utente->nome) - 1] = '\0';
   nuovo_utente->punteggio = 0;
   nuovo_utente->num_parole = 0;
+  nuovo_utente->in_gioco = 1;
+  nuovo_utente->sock = sock;
   nuovo_utente->next = utenti_head;
   utenti_head = nuovo_utente;
 
@@ -57,7 +59,7 @@ int registra_utente(const char *nome)
   return 1;
 }
 
-int login_utente(const char *nome)
+int login_utente(int sock, const char *nome)
 {
   int found = 0;
   pthread_mutex_lock(&utenti_mutex);
@@ -66,7 +68,15 @@ int login_utente(const char *nome)
   {
     if (strcmp(curr->nome, nome) == 0)
     {
+      if(curr->in_gioco == 1)
+      {
+        pthread_mutex_unlock(&utenti_mutex);
+        return 0; // Utente già in gioco
+      }
+      
       found = 1;
+      curr->in_gioco = 1;
+      curr->sock = sock;
       break;
     }
     curr = curr->next;
