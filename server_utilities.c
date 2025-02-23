@@ -225,7 +225,8 @@ void build_classifica_csv(char *out, size_t out_size)
   int count = 0;
   for (Utente *u = utenti_head; u != NULL; u = u->next)
   {
-    count++;
+    if (u->in_gioco == 1)
+      count++;
   }
   if (count == 0)
   {
@@ -246,7 +247,8 @@ void build_classifica_csv(char *out, size_t out_size)
   int i = 0;
   for (Utente *u = utenti_head; u != NULL; u = u->next)
   {
-    array[i++] = u;
+    if (u->in_gioco == 1)
+      array[i++] = u;
   }
 
   // Sblocchiamo il mutex prima dell'ordinamento
