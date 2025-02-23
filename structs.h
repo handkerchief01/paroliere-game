@@ -33,6 +33,8 @@ typedef struct Utente
   char parole_usate[MAX_PAROLE][MAX_LEN_PAROLA]; // Array di parole usate
   int num_parole; // Numero di parole usate
   struct Utente *next; // Puntatore al prossimo utente nella lista
+  int in_gioco; // 1 se l'utente è in gioco, 0 altrimenti
+  int sock; // Socket associato all'utente
 } Utente;
 
 typedef struct ClientNode

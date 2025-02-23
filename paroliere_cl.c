@@ -203,6 +203,7 @@ int main(int argc, char *argv[])
     {
       printf("Comando non valido\n");
       printf("[PROMPT PAROLIERE]--> ");
+      continue;
     }
 
     // Usa una variabile per il comando riconosciuto
