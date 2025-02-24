@@ -94,7 +94,6 @@ int leggi_tutte_le_matrici(const char *filename)
     int tokenCount = 0;
     while (token && tokenCount < 16)
     {
-      printf("   Token #%d: '%s'\n", tokenCount + 1, token); // debug
       strncpy(array_matrici[count_matrici].matrice[tokenCount / 4][tokenCount % 4],
               token, 3);
       array_matrici[count_matrici].matrice[tokenCount / 4][tokenCount % 4][3] = '\0';

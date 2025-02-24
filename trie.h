@@ -3,14 +3,7 @@
 
 #include <stddef.h>
 
-#define ALPHABET_SIZE 26
-
-// Definizione del nodo del Trie
-typedef struct TrieNode
-{
-  int isEndOfWord; // 1 se il nodo rappresenta la fine di una parola
-  struct TrieNode *children[ALPHABET_SIZE];
-} TrieNode;
+#include "structs.h"
 
 // Crea e restituisce un nuovo nodo del Trie
 TrieNode *createTrieNode(void);

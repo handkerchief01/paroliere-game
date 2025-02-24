@@ -2,14 +2,10 @@
 #define MATRICE_H
 
 #include <string.h>
+#include "structs.h"
 
-#define MATRIX_SIZE 4
+
 #define MAX_MATRICI 100 // numero massimo di righe/matrici nel file
-// Definizione della struttura Matrice
-typedef struct
-{
-  char matrice[MATRIX_SIZE][MATRIX_SIZE][3]; // Ogni cella può contenere una stringa di 2 caratteri più il terminatore nullo
-} Matrice;
 
 extern Matrice mat_attuale;
 

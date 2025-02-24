@@ -24,8 +24,9 @@
 #define MAX_PAROLE 100
 #define MAX_LEN_PAROLA 32
 #define MAX_MSG_LEN 128
+#define MATRIX_SIZE 4
+#define ALPHABET_SIZE 26
 
-// Struttura per memorizzare le informazioni degli utenti
 typedef struct Utente
 {
   char nome[20];      // Nome dell'utente
@@ -42,6 +43,17 @@ typedef struct ClientNode
   int sock;
   struct ClientNode *next;
 } ClientNode;
+
+typedef struct
+{
+  char matrice[MATRIX_SIZE][MATRIX_SIZE][3]; // Ogni cella può contenere una stringa di 2 caratteri più il terminatore nullo
+} Matrice;
+
+typedef struct TrieNode
+{
+  int isEndOfWord; // 1 se il nodo rappresenta la fine di una parola
+  struct TrieNode *children[ALPHABET_SIZE];
+} TrieNode;
 
 typedef struct
 {

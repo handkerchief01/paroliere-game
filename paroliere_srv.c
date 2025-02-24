@@ -48,12 +48,6 @@ int TEMPO_PAUSA = 60;   // Sempre 60 secondi di pausa
 // Variabile globale per memorizzare i minuti dopo cui disconnettere
 static int DISCONNECT_AFTER = 0;
 
-// Struttura per la bacheca dei messaggi
-// static BachecaMsg bacheca[MAX_BACHECA];
-// static int bacheca_count = 0; // quanti messaggi attualmente in bacheca (<= 8)
-// static int bacheca_index = 0; // prossima posizione di scrittura (indice circolare)
-// pthread_mutex_t bacheca_mutex = PTHREAD_MUTEX_INITIALIZER;
-
 volatile sig_atomic_t partitaTerminataFlag = 0; // Indica che la partita è appena terminata, mi serve per lo scorer
 volatile sig_atomic_t partitaIniziataFlag = 0;  // Indica che la partita è appena iniziata, mi serve per lo scorer
 
