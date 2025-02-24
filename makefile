@@ -3,7 +3,7 @@ CC = gcc
 
 CFLAGS = -Wall -pthread
 
-SERVER_OBJS = paroliere_srv.o matrice.o server_utilities.o utilities.o trie.o
+SERVER_OBJS = paroliere_srv.o matrice.o server_utilities.o utilities.o trie.o bacheca.o
 CLIENT_OBJS = paroliere_cl.o utilities.o
 
 SERVER_TARGET = paroliere_srv
@@ -17,7 +17,7 @@ $(SERVER_TARGET): $(SERVER_OBJS)
 $(CLIENT_TARGET): $(CLIENT_OBJS)
 	$(CC) $(CFLAGS) -o $(CLIENT_TARGET) $(CLIENT_OBJS)
 
-paroliere_srv.o: paroliere_srv.c matrice.h server_utilities.h utilities.h trie.h
+paroliere_srv.o: paroliere_srv.c matrice.h server_utilities.h utilities.h trie.h bacheca.h
 	$(CC) $(CFLAGS) -c paroliere_srv.c
 
 paroliere_cl.o: paroliere_cl.c utilities.h
@@ -34,6 +34,9 @@ utilities.o: utilities.c utilities.h
 
 trie.o: trie.c trie.h
 	$(CC) $(CFLAGS) -c trie.c
+
+bacheca.o: bacheca.c bacheca.h
+	$(CC) $(CFLAGS) -c bacheca.c
 
 clean:
 	rm -f $(SERVER_OBJS) $(CLIENT_OBJS) $(SERVER_TARGET) $(CLIENT_TARGET)
