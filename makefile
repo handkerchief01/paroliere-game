@@ -1,52 +1,39 @@
-# Definisce il compilatore
+#
 CC = gcc
 
-# Definisce le opzioni del compilatore
 CFLAGS = -Wall -pthread
 
-# Definisce i file oggetto
 SERVER_OBJS = paroliere_srv.o matrice.o server_utilities.o utilities.o trie.o
-CLIENT_OBJS = paroliere_cl.o matrice.o utilities.o trie.o
+CLIENT_OBJS = paroliere_cl.o utilities.o
 
-# Definisce i file eseguibili
 SERVER_TARGET = paroliere_srv
 CLIENT_TARGET = paroliere_cl
 
-# Regola predefinita, compila tutti i target
 all: $(SERVER_TARGET) $(CLIENT_TARGET)
 
-# Regola per compilare il server
 $(SERVER_TARGET): $(SERVER_OBJS)
 	$(CC) $(CFLAGS) -o $(SERVER_TARGET) $(SERVER_OBJS)
 
-# Regola per compilare il client
 $(CLIENT_TARGET): $(CLIENT_OBJS)
 	$(CC) $(CFLAGS) -o $(CLIENT_TARGET) $(CLIENT_OBJS)
 
-# Regola per compilare il file oggetto server.o
 paroliere_srv.o: paroliere_srv.c matrice.h server_utilities.h utilities.h trie.h
 	$(CC) $(CFLAGS) -c paroliere_srv.c
 
-# Regola per compilare il file oggetto client.o
-paroliere_cl.o: paroliere_cl.c matrice.h utilities.h trie.h
+paroliere_cl.o: paroliere_cl.c utilities.h
 	$(CC) $(CFLAGS) -c paroliere_cl.c
 
-# Regola per compilare il file oggetto matrice.o
 matrice.o: matrice.c matrice.h
 	$(CC) $(CFLAGS) -c matrice.c
 
-# Regola per compilare il file oggetto server_utilities.o
 server_utilities.o: server_utilities.c server_utilities.h utilities.h trie.h
 	$(CC) $(CFLAGS) -c server_utilities.c
 
-# Regola per compilare il file oggetto utilities.o
 utilities.o: utilities.c utilities.h
 	$(CC) $(CFLAGS) -c utilities.c
 
-# Regola per compilare il file oggetto trie.o
 trie.o: trie.c trie.h
 	$(CC) $(CFLAGS) -c trie.c
 
-# Regola per pulire i file oggetto e gli eseguibili
 clean:
 	rm -f $(SERVER_OBJS) $(CLIENT_OBJS) $(SERVER_TARGET) $(CLIENT_TARGET)

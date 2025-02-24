@@ -21,7 +21,6 @@
 
 // Numero massimo di client in coda di connessione
 #define MAX_CLIENTS 32
-#define MAX_MATRICI 100 // numero massimo di righe/matrici nel file
 #define MAX_BACHECA 8
 
 // Variabili globali
@@ -35,9 +34,6 @@ volatile sig_atomic_t updateMatrixFlag = 0;
 Utente *utenti_head = NULL;                               // Lista utenti collegati
 pthread_mutex_t utenti_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-Matrice array_matrici[MAX_MATRICI];                       // tutte le matrici lette
-int count_matrici = 0;                                    // quante righe/matrici abbiamo letto
-int current_index = 0;                                    // indice della prossima matrice da usare
 TrieNode *dictionaryRoot = NULL;
 
 // Stato della partita: 0 = pausa (tempo di attesa), 1 = partita in corso.
@@ -59,24 +55,6 @@ pthread_mutex_t bacheca_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 volatile sig_atomic_t partitaTerminataFlag = 0; // Indica che la partita è appena terminata, mi serve per lo scorer
 volatile sig_atomic_t partitaIniziataFlag = 0;  // Indica che la partita è appena iniziata, mi serve per lo scorer
-
-int get_next_matrice(Matrice *dest)
-{
-  if (count_matrici == 0 && current_index == 0) // quindi se non viene letto alcun file (matrice.txt)
-  {
-    genera_matrice_casuale(&mat_attuale);
-    array_matrici[0] = mat_attuale;
-    return 0;
-  }
-
-  // Copia la matrice dall'array in dest
-  *dest = array_matrici[current_index];
-
-  // Avanziamo l'indice in modo circolare (se vuoi riusare in loop)
-  // o lo incrementi fino a fermarti all'ultima
-  current_index = (current_index + 1) % count_matrici;
-  return 0;
-}
 
 void add_client(int sock)
 {
@@ -558,66 +536,6 @@ void *handle_client(void *client_socket)
   close(sock);
   remove_client(sock);
   return NULL;
-}
-
-int leggi_tutte_le_matrici(const char *filename)
-{
-  FILE *f = fopen(filename, "r");
-  if (!f)
-  {
-    perror("Errore apertura file matrici");
-    return -1;
-  }
-  count_matrici = 0;
-
-  char buffer[256];
-  while (fgets(buffer, sizeof(buffer), f))
-  {
-    // Stampiamo la riga grezza letta (debug)
-    printf("Riga letta: '%s'\n", buffer);
-
-    // Se la riga è vuota, skip
-    if (buffer[0] == '\n' || buffer[0] == '\0')
-    {
-      printf(" -> Riga vuota, salto.\n");
-      continue;
-    }
-
-    // Parse 16 token
-    char *token = strtok(buffer, " \t\r\n");
-    int tokenCount = 0;
-    while (token && tokenCount < 16)
-    {
-      printf("   Token #%d: '%s'\n", tokenCount + 1, token); // debug
-      strncpy(array_matrici[count_matrici].matrice[tokenCount / 4][tokenCount % 4],
-              token, 3);
-      array_matrici[count_matrici].matrice[tokenCount / 4][tokenCount % 4][3] = '\0';
-      tokenCount++;
-      token = strtok(NULL, " \t\r\n");
-    }
-    printf(" => Trovati %d token in questa riga.\n", tokenCount);
-
-    // Se la riga ha 16 token validi, contiamo questa matrice
-    if (tokenCount == 16)
-    {
-      count_matrici++;
-      printf(" -> OK, matrice %d caricata.\n", count_matrici);
-      if (count_matrici >= MAX_MATRICI)
-      {
-        printf("Raggiunto il limite di %d matrici.\n", MAX_MATRICI);
-        break;
-      }
-    }
-    else
-    {
-      printf(" -> Riga con tokenCount != 16, ignorata.\n");
-    }
-  }
-
-  fclose(f);
-
-  printf("Totale matrici caricate: %d\n", count_matrici);
-  return 0;
 }
 
 int main(int argc, char *argv[])
