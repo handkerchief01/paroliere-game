@@ -29,7 +29,7 @@
 
 typedef struct Utente
 {
-  char nome[20];      // Nome dell'utente
+  char nome[10];      // Nome dell'utente
   int punteggio;       // Punteggio dell'utente
   char parole_usate[MAX_PAROLE][MAX_LEN_PAROLA]; // Array di parole usate
   int num_parole; // Numero di parole usate

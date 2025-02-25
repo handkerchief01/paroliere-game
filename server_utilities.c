@@ -16,7 +16,7 @@ int registra_utente(int sock, const char *nome)
   pthread_mutex_lock(&utenti_mutex);
 
   // Verifichiamo la lunghezza minima/massima
-  if (strlen(nome) == 0 || strlen(nome) > 20)
+  if (strlen(nome) == 0 || strlen(nome) > 10)
   {
     pthread_mutex_unlock(&utenti_mutex);
     return 0; // Nome non valido
@@ -257,8 +257,7 @@ void build_classifica_csv(char *out, size_t out_size)
   // Ordina in base al punteggio decrescente
   qsort(array, count, sizeof(Utente *), cmp_utente_punteggio_desc);
 
-  // Costruiamo lo stile multi-riga
-  // Prima riga di intestazione
+  
   size_t used = 0;
   int written = snprintf(out, out_size,
                          "\"Utente\",\"Punteggio\"\n");

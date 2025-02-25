@@ -112,10 +112,10 @@ void alarm_handler(int signum)
     }
     else
     {
-      // Se eravamo in pausa, la pausa è finita: inizia la partita
-      partitaInCorso = 1;
       // Per la nuova partita, aggiorniamo la matrice (per esempio, prendiamo la successiva)
       updateMatrixFlag = 1;
+      // Se eravamo in pausa, la pausa è finita: inizia la partita
+      partitaInCorso = 1;
       partitaIniziataFlag = 1;
       tempo_residuo = TEMPO_PARTITA;
       write(STDOUT_FILENO, "Pausa terminata. La partita inizia.\n", 36);

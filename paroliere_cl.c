@@ -105,22 +105,6 @@ void *receiver_thread(void *arg)
   pthread_exit(NULL);
 
 }
-// Funzione per richiedere il tempo residuo al server
-int richiedi_tempo_residuo(int sock)
-{
-  char msg_type = MSG_TEMPO_PARTITA;        // Tipo di messaggio per richiedere il tempo residuo
-  write(sock, &msg_type, sizeof(msg_type)); // Invia la richiesta al server
-
-  char response_type;           // Tipo di messaggio di risposta
-  unsigned int response_length; // Lunghezza del messaggio di risposta
-  int tempo_residuo;
-
-  read(sock, &response_type, sizeof(response_type));     // Legge il tipo di messaggio di risposta
-  read(sock, &response_length, sizeof(response_length)); // Legge la lunghezza del messaggio di risposta
-  read(sock, &tempo_residuo, response_length);           // Legge il tempo residuo
-
-  return tempo_residuo; // Ritorna il tempo residuo
-}
 
 void print_help()
 {

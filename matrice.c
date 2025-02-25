@@ -60,8 +60,7 @@ int get_next_matrice(Matrice *dest)
   // Copia la matrice dall'array in dest
   *dest = array_matrici[current_index];
 
-  // Avanziamo l'indice in modo circolare (se vuoi riusare in loop)
-  // o lo incrementi fino a fermarti all'ultima
+  // Avanziamo l'indice in modo circolare
   current_index = (current_index + 1) % count_matrici;
   return 0;
 }

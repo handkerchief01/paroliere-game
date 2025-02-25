@@ -9,10 +9,10 @@ pthread_mutex_t bacheca_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 int post_bacheca(const char *user, const char *text)
 {
-  // Controlla lunghezza text
+  // Controlla lunghezza di text
   if (strlen(text) > MAX_MSG_LEN)
   {
-    return 0; // errore: troppo lungo
+    return 0;
   }
 
   pthread_mutex_lock(&bacheca_mutex);
@@ -40,8 +40,6 @@ int post_bacheca(const char *user, const char *text)
 
 /**
  * Costruisce un CSV con i messaggi in ordine dal più vecchio al più nuovo.
- * Nel buffer out (size out_size) inseriamo qualcosa tipo:
- *   "pippo|Ciao, pluto|Benvenuto, ..."
  * Ritorna quanti byte abbiamo scritto, o -1 se errore.
  */
 int show_bacheca(char *out, size_t out_size)
