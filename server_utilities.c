@@ -297,14 +297,40 @@ void build_classifica_csv(char *out, size_t out_size)
 
   if (count > 0)
   {
-    written = snprintf(out + used, out_size - used,
-                       "\"Vincitore\",\"%s\". Una nuova partita inizierà tra un minuto\n",
-                       array[0]->nome);
-    if (written > 0 && (size_t)written < (out_size - used))
-    {
-      used += written;
-    }
+      int max_punteggio = array[0]->punteggio;
+
+      used += snprintf(out + used, out_size - used,
+        "\"%s\",", array[0]->punteggio == array[1]->punteggio ? "Vincitori" : "Vincitore"); // se ci sono almeno due utenti a parimerito allora scritta al plurale
+  
+      // Troviamo tutti gli utenti con punteggio massimo
+      for (int k = 0; k < count; k++)
+      {
+          if (array[k]->punteggio == max_punteggio)
+          {
+              written = snprintf(out + used, out_size - used,
+                                 "\"%s\"%s",
+                                 array[k]->nome,
+                                 (k < count - 1 && array[k + 1]->punteggio == max_punteggio) ? "," : "\n");
+              if (written < 0 || (size_t)written >= (out_size - used))
+              {
+                  break; // Evita overflow
+              }
+              used += written;
+          }
+          else
+          {
+              break; // Gli altri hanno punteggio inferiore
+          }
+      }
+  
+      written = snprintf(out + used, out_size - used,
+                         "Una nuova partita inizierà tra un minuto\n");
+      if (written > 0 && (size_t)written < (out_size - used))
+      {
+          used += written;
+      }
   }
+  
 
   free(array);
 }

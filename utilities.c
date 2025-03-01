@@ -122,7 +122,7 @@ void log_event(const char *format, ...)
   }
   time_t now = time(NULL);
   char timeStr[64];
-  strftime(timeStr, sizeof(timeStr), "[%Y-%m-%d %H:%M:%S]", localtime(&now));
+  strftime(timeStr, sizeof(timeStr), "[%d-%m-%Y %H:%M:%S]", localtime(&now));
   fprintf(logFile, "%s ", timeStr);
 
   va_list args;

@@ -164,6 +164,16 @@ void *controller_thread(void *arg)
       c = c->next;
     }
     pthread_mutex_unlock(&clientListMutex);
+    pthread_mutex_lock(&utenti_mutex);
+    Utente *utente = utenti_head;
+    while (utente != NULL)
+    {
+      utente->punteggio = 0;
+      utente->num_parole = 0;
+      utente->parole_usate[0][0] = '\0';
+      utente = utente->next;
+    }
+    pthread_mutex_unlock(&utenti_mutex);
   }
   return NULL;
 }
@@ -197,17 +207,6 @@ void *scorer(void *arg)
       c = c->next;
     }
     pthread_mutex_unlock(&clientListMutex);
-
-    pthread_mutex_lock(&utenti_mutex);
-    Utente *utente = utenti_head;
-    while (utente != NULL)
-    {
-      utente->punteggio = 0;
-      utente->num_parole = 0;
-      utente->parole_usate[0][0] = '\0';
-      utente = utente->next;
-    }
-    pthread_mutex_unlock(&utenti_mutex);
   }
   return NULL;
 }
@@ -632,11 +631,11 @@ int main(int argc, char *argv[])
 
   printf("Server in ascolto su %s:%s ...\n", nome_server, porta_server);
 
-  pthread_t ctrl_tid;
-  pthread_create(&ctrl_tid, NULL, controller_thread, NULL);
+  int ctrl_ret, scorer_ret;
+  pthread_t ctrl_tid, scorer_tid;
+  SYSC(ctrl_ret, pthread_create(&ctrl_tid, NULL, controller_thread, NULL), "pthread_create del controller fallita");
 
-  pthread_t scorer_tid;
-  pthread_create(&scorer_tid, NULL, scorer, NULL);
+  SYSC(scorer_ret, pthread_create(&scorer_tid, NULL, scorer, NULL), "pthread_create dello scorer fallita");
   // Loop principale per accettare i client
   while (!shutdownRequested)
   {

@@ -167,18 +167,23 @@ int main(int argc, char *argv[])
 
   server_address.sin_port = htons(port);
 
-  SYSC(retvalue, connect(sock, (struct sockaddr *)&server_address, sizeof(server_address)), "Connect error");
+  SYSC(retvalue, connect(sock, (struct sockaddr *)&server_address, sizeof(server_address)), "Errore connessione");
   printf("Connesso al server\n");
 
   // Mostra il menu iniziale
   print_help();
 
   pthread_t recv_thread;
+  /*
   if (pthread_create(&recv_thread, NULL, receiver_thread, (void *)&sock) != 0)
   {
     perror("pthread_create (receiver) failed");
     exit(EXIT_FAILURE);
   } 
+  */
+
+  int ret;
+  SYSC(ret, pthread_create(&recv_thread, NULL, receiver_thread, (void *)&sock), "pthread_create fallita");
 
   char command[1024];
   printf("[PROMPT PAROLIERE]--> ");
