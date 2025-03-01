@@ -89,8 +89,6 @@ void remove_client(int sock)
 
 void sigint_handler(int signum)
 {
-  const char *file = "log.txt";
-  remove(file);
   shutdownRequested = 1;
 }
 

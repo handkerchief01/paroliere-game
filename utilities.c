@@ -125,10 +125,10 @@ void log_event(const char *format, ...)
   strftime(timeStr, sizeof(timeStr), "[%d-%m-%Y %H:%M:%S]", localtime(&now));
   fprintf(logFile, "%s ", timeStr);
 
-  va_list args;
-  va_start(args, format);
-  vfprintf(logFile, format, args);
-  va_end(args);
+  va_list args; // per gestire gli argomenti variabili
+  va_start(args, format); // punta al primo elemento della lista di variabili
+  vfprintf(logFile, format, args); // scrive sul file di log
+  va_end(args); // ripulisce la lista
 
   fprintf(logFile, "\n");
   fflush(logFile);

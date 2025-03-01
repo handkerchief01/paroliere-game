@@ -301,6 +301,8 @@ void build_classifica_csv(char *out, size_t out_size)
 
       used += snprintf(out + used, out_size - used,
         "\"%s\",", array[0]->punteggio == array[1]->punteggio ? "Vincitori" : "Vincitore"); // se ci sono almeno due utenti a parimerito allora scritta al plurale
+
+      log_event("PARTITA FINITA");
   
       // Troviamo tutti gli utenti con punteggio massimo
       for (int k = 0; k < count; k++)
