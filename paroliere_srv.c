@@ -164,7 +164,14 @@ void *controller_thread(void *arg)
       c = c->next;
     }
     pthread_mutex_unlock(&clientListMutex);
+  }
+  return NULL;
+}
 
+void *scorer(void *arg)
+{
+  while (!shutdownRequested)
+  {
     // Aspetta che partitaTerminataFlag diventi 1
     while (!partitaTerminataFlag && !shutdownRequested)
     {
@@ -182,7 +189,8 @@ void *controller_thread(void *arg)
 
     // Invia classifica a tutti i client
     pthread_mutex_lock(&clientListMutex);
-    c = clientList;
+    ClientNode *c = clientList;
+
     while (c != NULL)
     {
       invia_messaggio(c->sock, MSG_PUNTI_FINALI, scoreboard);
@@ -626,6 +634,9 @@ int main(int argc, char *argv[])
 
   pthread_t ctrl_tid;
   pthread_create(&ctrl_tid, NULL, controller_thread, NULL);
+
+  pthread_t scorer_tid;
+  pthread_create(&scorer_tid, NULL, scorer, NULL);
   // Loop principale per accettare i client
   while (!shutdownRequested)
   {
