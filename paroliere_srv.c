@@ -37,7 +37,7 @@ pthread_mutex_t utenti_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 TrieNode *dictionaryRoot = NULL;
 
-// Stato della partita: 0 = pausa (tempo di attesa), 1 = partita in corso.
+// Stato della partita: 0 = pausa, 1 = partita in corso.
 volatile sig_atomic_t partitaInCorso = 0;
 // Tempo residuo nell'intervallo corrente (in secondi)
 volatile sig_atomic_t tempo_residuo = 0;
@@ -218,7 +218,7 @@ void *handle_client(void *client_socket)
   if (DISCONNECT_AFTER > 0)
   {
     struct timeval tv;
-    tv.tv_sec = DISCONNECT_AFTER * 60; // minuti -> secondi
+    tv.tv_sec = DISCONNECT_AFTER * 60;
     tv.tv_usec = 0;
     setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof(tv));
   }
@@ -642,7 +642,7 @@ int main(int argc, char *argv[])
     {
       if (errno == EINTR)
       {
-        // La chiamata è stata interrotta da un segnale (ad esempio SIGALRM o SIGINT)
+        // La chiamata è stata interrotta da un segnale
         continue;
       }
       perror("accept failed");

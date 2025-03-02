@@ -3,7 +3,7 @@
 #define MAX_BACHECA 8
 static BachecaMsg bacheca[MAX_BACHECA];
 static int bacheca_count = 0; // quanti messaggi attualmente in bacheca (<= 8)
-static int bacheca_index = 0; // prossima posizione di scrittura (indice circolare)
+static int bacheca_index = 0; // indice circolare
 pthread_mutex_t bacheca_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 
@@ -35,7 +35,7 @@ int post_bacheca(const char *user, const char *text)
 
   pthread_mutex_unlock(&bacheca_mutex);
 
-  return 1; // OK
+  return 1;
 }
 
 /**

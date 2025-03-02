@@ -3,7 +3,6 @@
 
 #include <pthread.h>
 
-// Definizioni di macro
 #define MSG_OK 'K'
 #define MSG_ERR 'E'
 #define MSG_REGISTRA_UTENTE 'R'

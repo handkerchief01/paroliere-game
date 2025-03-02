@@ -131,14 +131,14 @@ int parola_in_matrice(const Matrice *mat, const char *parola)
 
 int verifica_parola(const char *parola, const Matrice *mat)
 {
-  // 2. Verifica se la parola può essere formata nella matrice
+  // Verifica parola nella matrice
   if (!parola_in_matrice(mat, parola))
   {
     printf("Parola non presente nella matrice\n");
     return 0;
   }
 
-  // 3. Verifica se la parola è presente nel dizionario
+  // Verifica parola nel dizionario
   if (!searchWord(dictionaryRoot, parola))
   {
     printf("Parola non presente nel dizionario\n");
@@ -198,7 +198,6 @@ int cmp_utente_punteggio_desc(const void *a, const void *b)
   Utente *ua = *(Utente **)a;
   Utente *ub = *(Utente **)b;
   return (ub->punteggio - ua->punteggio);
-  // se ub > ua => positivo => ub prima di ua => ordinamento decrescente
 }
 
 void aggiorna_punteggio(const char *nome, int punteggio)
@@ -251,7 +250,6 @@ void build_classifica_csv(char *out, size_t out_size)
       array[i++] = u;
   }
 
-  // Sblocchiamo il mutex prima dell'ordinamento
   pthread_mutex_unlock(&utenti_mutex);
 
   // Ordina in base al punteggio decrescente

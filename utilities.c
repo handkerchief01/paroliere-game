@@ -36,14 +36,14 @@ int ricevi_messaggio(int sock, char *type, int *length, char *data)
   SYSC(ret, read(sock, length, sizeof(int)), "Errore in lettura: length");
   if (ret == 0)
   {
-    // Significa EOF (il client ha chiuso la connessione in modo ordinato)
+    // EOF (il client ha chiuso la connessione in modo ordinato)
     return 0;
   }
   else if (ret == -2)
   {
-    // Significa EAGAIN/EWOULDBLOCK => timeout
+    // EAGAIN/EWOULDBLOCK => timeout
     errno = EAGAIN;
-    return -1; // Oppure un altro codice a tua scelta
+    return -1;
   }
   // Se ret > 0, la lettura è andata avanti.
 
@@ -75,7 +75,7 @@ int ricevi_messaggio(int sock, char *type, int *length, char *data)
     data[0] = '\0';
   }
 
-  return 1; // Tutto ok
+  return 1;
 }
 
 int is_italian_alnum(char c)

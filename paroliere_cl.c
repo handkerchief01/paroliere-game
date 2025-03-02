@@ -76,8 +76,7 @@ void *receiver_thread(void *arg)
 
     case MSG_SHOW_BACHECA:
       printf("BACHECA:\n");
-      printf("%s\n", data); // ad esempio: stampa la stringa raw
-      // (oppure parse con strtok)
+      printf("%s\n", data);
       break;
 
     case MSG_PUNTI_FINALI:
@@ -174,13 +173,6 @@ int main(int argc, char *argv[])
   print_help();
 
   pthread_t recv_thread;
-  /*
-  if (pthread_create(&recv_thread, NULL, receiver_thread, (void *)&sock) != 0)
-  {
-    perror("pthread_create (receiver) failed");
-    exit(EXIT_FAILURE);
-  } 
-  */
 
   int ret;
   SYSC(ret, pthread_create(&recv_thread, NULL, receiver_thread, (void *)&sock), "pthread_create fallita");
@@ -320,7 +312,7 @@ int main(int argc, char *argv[])
       {
         // Costruisci il payload come: "my_name\0parola"
         char payload[256];
-        // token contiene la parola inserita (assicurati che non sia NULL)
+        
         snprintf(payload, sizeof(payload), "%s|%s", my_name, token);
 
         printf("Nome|Parola: %s\n", payload);
@@ -360,7 +352,6 @@ int main(int argc, char *argv[])
     printf("[PROMPT PAROLIERE]--> ");
   }
 
-  // Chiude il socket
   close(sock);
 
   return 0;

@@ -25,12 +25,12 @@ void genera_matrice_casuale(Matrice *mat)
       int random_index = rand() % numero_lettere;
       // Copio al massimo 3 caratteri (es. "Qu" + terminatore)
       strncpy(mat->matrice[i][j], lettere_possibili[random_index], 3);
-      mat->matrice[i][j][3] = '\0'; // Assicuro terminazione
+      mat->matrice[i][j][3] = '\0';
     }
   }
 }
 
-// Converte la matrice in una stringa (testuale) da inviare al client
+// Converte la matrice in una stringa da inviare al client
 void matrice_to_string(const Matrice *mat, char *dest, size_t size)
 {
   memset(dest, 0, size);
@@ -78,9 +78,6 @@ int leggi_tutte_le_matrici(const char *filename)
   char buffer[256];
   while (fgets(buffer, sizeof(buffer), f))
   {
-    // Stampiamo la riga grezza letta (debug)
-    printf("Riga letta: '%s'\n", buffer);
-
     // Se la riga è vuota, skip
     if (buffer[0] == '\n' || buffer[0] == '\0')
     {
