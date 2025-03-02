@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include <time.h>
+#include <ctype.h>
 
 #include "utilities.h"
 #include "server_utilities.h"
@@ -22,10 +23,10 @@ int registra_utente(int sock, const char *nome)
     return 0; // Nome non valido
   }
 
-  // Verifichiamo che il nome contenga solo caratteri ammessi (alfabeto italiano e numeri)
+  // Verifichiamo che il nome contenga solo caratteri ammessi (alfanumerici)
   for (int i = 0; i < strlen(nome); i++)
   {
-    if (!is_italian_alnum(nome[i]))
+    if (!isalnum(nome[i]))
     {
       pthread_mutex_unlock(&utenti_mutex);
       return 0; // Carattere non ammesso

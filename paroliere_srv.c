@@ -483,7 +483,7 @@ int main(int argc, char *argv[])
 
   // Parametri opzionali: inizializziamo con i valori di default
   char *matrici_filename = NULL;    // Se non specificato, genera matrici casuali
-  int durata_minuti = 3;            // Durata di default = 3 minuti
+  int durata_minuti = 1;            // Durata di default = 1 minuti
   int rnd_seed = 0;                 // Se 0, non è stato specificato; altrimenti useremo il valore fornito
   char *dizionario_filename = NULL; // Dizionario opzionale
 

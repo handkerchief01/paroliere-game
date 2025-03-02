@@ -78,32 +78,6 @@ int ricevi_messaggio(int sock, char *type, int *length, char *data)
   return 1;
 }
 
-int is_italian_alnum(char c)
-{
-  // Se è una cifra, lo ammettiamo
-  if (c >= '0' && c <= '9')
-  {
-    return 1;
-  }
-
-  // Convertiamo in maiuscolo per il confronto
-  unsigned char uc = (unsigned char)c;
-  uc = (unsigned char)toupper(uc);
-
-  // Alfabeto italiano tradizionale (21 lettere)
-  // Qui escludiamo J, K, W, X, Y
-  // Quindi consideriamo validi: A B C D E F G H I L M N O P Q R S T U V Z
-  const char *alfabeto_italiano = "ABCDEFGHILMNOPQRSTUVZ";
-
-  // Controlliamo se uc è una di queste lettere
-  if (strchr(alfabeto_italiano, uc) != NULL)
-  {
-    return 1;
-  }
-
-  return 0;
-}
-
 FILE *logFile = NULL;
 pthread_mutex_t logMutex = PTHREAD_MUTEX_INITIALIZER;
 

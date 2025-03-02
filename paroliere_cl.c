@@ -109,7 +109,7 @@ void print_help()
 {
   printf("Comandi disponibili:\n");
   printf("aiuto -> Mostra questo messaggio di aiuto\n");
-  printf("registra_utente <nome_utente> -> Registra un nuovo utente (sono ammessi solo caratteri alfanumerici dell'alfabeto italiano)\n");
+  printf("registra_utente <nome_utente> -> Registra un nuovo utente (sono ammessi solo caratteri alfanumerici)\n");
   printf("login_utente <nome_utente> -> Effettua il login con un utente esistente\n");
   printf("cancella_utente <nome_utente> -> Cancella un utente registrato\n");
   printf("matrice -> Richiede la matrice corrente (devi essere registrato)\n");
