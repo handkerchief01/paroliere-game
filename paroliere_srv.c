@@ -458,7 +458,6 @@ void *handle_client(void *client_socket)
 
 int main(int argc, char *argv[])
 {
-  signal(SIGPIPE, SIG_IGN);
 
   struct sigaction sa_int;
   memset(&sa_int, 0, sizeof(sa_int));
