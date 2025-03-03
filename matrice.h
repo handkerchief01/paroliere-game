@@ -1,4 +1,4 @@
-#ifndef MATRICE_H // verifica se la libreria MATRICE_H è già stata inclusa
+#ifndef MATRICE_H
 #define MATRICE_H
 
 #include <string.h>
@@ -9,10 +9,9 @@
 
 extern Matrice mat_attuale;
 
-// Dichiarazione delle funzioni
 void genera_matrice_casuale(Matrice *mat);
 void matrice_to_string(const Matrice *mat, char *out, size_t size);
 int get_next_matrice(Matrice *dest);
 int leggi_tutte_le_matrici(const char *filename);
 
-#endif // MATRICE_H
+#endif

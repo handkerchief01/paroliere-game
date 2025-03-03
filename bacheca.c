@@ -38,15 +38,13 @@ int post_bacheca(const char *user, const char *text)
   return 1;
 }
 
-/**
- * Costruisce un CSV con i messaggi in ordine dal più vecchio al più nuovo.
- * Ritorna quanti byte abbiamo scritto, o -1 se errore.
+/*
+ Costruisce un CSV con i messaggi in ordine dal più vecchio al più nuovo.
  */
 int show_bacheca(char *out, size_t out_size)
 {
   pthread_mutex_lock(&bacheca_mutex);
 
-  // Scrivi l'intestazione
   const char *header = "\"Utente\",\"Messaggio\"\n";
   size_t used = 0;
   size_t hdr_len = strlen(header);

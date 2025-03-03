@@ -61,7 +61,6 @@ void *receiver_thread(void *arg)
 
 
     case MSG_TEMPO_PARTITA:
-      // Se il server è in pausa e invia il tempo di attesa residuo
       printf("Tempo residuo della partita: %s secondi\n", data);
       break;
 

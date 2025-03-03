@@ -29,10 +29,10 @@ ClientNode *clientList = NULL;
 pthread_mutex_t clientListMutex = PTHREAD_MUTEX_INITIALIZER;
 volatile sig_atomic_t shutdownRequested = 0;
 
-Matrice mat_attuale;                                      // Matrice di gioco 4x4
+Matrice mat_attuale; // Matrice di gioco 4x4
 volatile sig_atomic_t updateMatrixFlag = 0;
 
-Utente *utenti_head = NULL;                               // Lista utenti collegati
+Utente *utenti_head = NULL; // Lista utenti collegati
 pthread_mutex_t utenti_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 TrieNode *dictionaryRoot = NULL;
@@ -49,7 +49,7 @@ int TEMPO_PAUSA = 60;   // Sempre 60 secondi di pausa
 static int DISCONNECT_AFTER = 0;
 
 volatile sig_atomic_t partitaTerminataFlag = 0; // Indica che la partita è appena terminata, mi serve per lo scorer
-volatile sig_atomic_t partitaIniziataFlag = 0;  // Indica che la partita è appena iniziata, mi serve per lo scorer
+volatile sig_atomic_t partitaIniziataFlag = 0;  // Indica che la partita è appena iniziata
 
 void add_client(int sock)
 {
@@ -483,7 +483,7 @@ int main(int argc, char *argv[])
 
   // Parametri opzionali: inizializziamo con i valori di default
   char *matrici_filename = NULL;    // Se non specificato, genera matrici casuali
-  int durata_minuti = 1;            // Durata di default = 1 minuti
+  int durata_minuti = 1;            // Durata di default = 1 minuto
   int rnd_seed = 0;                 // Se 0, non è stato specificato; altrimenti useremo il valore fornito
   char *dizionario_filename = NULL; // Dizionario opzionale
 
@@ -580,7 +580,7 @@ int main(int argc, char *argv[])
   }
 
   /* Imposta lo stato iniziale del gioco.
-     Per esempio, il server parte in pausa (tempo di attesa).
+     Il server parte in pausa.
   */
   partitaInCorso = 0;
   tempo_residuo = TEMPO_PAUSA;
